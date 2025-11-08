@@ -2,11 +2,12 @@ package com.c05.kaz.ecommercebackend.security;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.http.*;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.*;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -27,36 +28,60 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
 
-        final String authHeader = request.getHeader("Authorization");
-        final String jwt;
-        final String username;
+        String path = request.getServletPath();
 
-        // Nếu không có header hoặc header không bắt đầu bằng Bearer
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+        // 🔓 Bỏ qua hoàn toàn cho các endpoint auth/public (forgot-password ở đây)
+        if (path.startsWith("/api/auth/") || path.startsWith("/api/public/")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        jwt = authHeader.substring(7);
+        // Bỏ qua preflight
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            // Không có token => cho qua, endpoint nào yêu cầu auth sẽ bị chặn trong SecurityConfig
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        String jwt = authHeader.substring(7);
+        String username;
+
         try {
             username = jwtService.extractUsername(jwt);
         } catch (Exception e) {
+            // Token lỗi -> không set auth, cho qua
             filterChain.doFilter(request, response);
             return;
         }
 
-        // Nếu user chưa đăng nhập vào SecurityContext
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
+            try {
+                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                boolean valid = false;
+                try {
+                    valid = jwtService.isTokenValid(jwt, userDetails);
+                } catch (Exception ignored) {}
 
-            if (jwtService.isTokenValid(jwt, userDetails)) {
-                UsernamePasswordAuthenticationToken authToken =
-                        new UsernamePasswordAuthenticationToken(
-                                userDetails, null, userDetails.getAuthorities());
-                authToken.setDetails(
-                        new WebAuthenticationDetailsSource().buildDetails(request));
-
-                SecurityContextHolder.getContext().setAuthentication(authToken);
+                if (valid) {
+                    UsernamePasswordAuthenticationToken authToken =
+                            new UsernamePasswordAuthenticationToken(
+                                    userDetails,
+                                    null,
+                                    userDetails.getAuthorities()
+                            );
+                    authToken.setDetails(
+                            new WebAuthenticationDetailsSource().buildDetails(request)
+                    );
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                }
+            } catch (Exception ignored) {
+                // Không tìm thấy user -> bỏ qua
             }
         }
 
