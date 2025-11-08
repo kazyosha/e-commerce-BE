@@ -30,55 +30,25 @@ public class AuthController {
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
 
-    // ========== ĐĂNG KÝ KHÁCH HÀNG ==========
+    // ================== ĐĂNG KÝ KHÁCH HÀNG ==================
 
     @PostMapping("/register/customer")
     public ResponseEntity<?> registerCustomer(@RequestBody RegisterRequest request) {
-        if (userAccountRepository.existsByEmail(request.getEmail())) {
-            return ResponseEntity.badRequest().body("Email đã tồn tại");
-        }
-        if (userAccountRepository.existsByUsername(request.getUsername())) {
-            return ResponseEntity.badRequest().body("Username đã tồn tại");
-        }
-
-        UserAccount user = UserAccount.builder()
-                .username(request.getUsername())
-                .email(request.getEmail())
-                .password(passwordEncoder.encode(request.getPassword()))
-                .userType(UserType.CUSTOMER)
-                .status(AccountStatus.ACTIVE)
-                .provider(SocialProvider.LOCAL)
-                .roles(Set.of(roleRepository.findByCode("CUSTOMER")))
-                .createdAt(LocalDateTime.now())
-                .build();
-
-        userAccountRepository.save(user);
-
-        // Tạo token luôn sau khi đăng ký
-        var springUser = User
-                .withUsername(user.getUsername())
-                .password(user.getPassword())
-                .authorities(user.getRoles().stream()
-                        .map(r -> "ROLE_" + r.getCode())
-                        .toArray(String[]::new))
-                .build();
-
-        String token = jwtService.generateToken(springUser);
-
-        AuthResponse response = new AuthResponse();
-        response.setToken(token);
-        response.setUsername(user.getUsername());
-        response.setUserType(user.getUserType().name());
-
-        return ResponseEntity.ok(response);
+        return registerUser(request, UserType.CUSTOMER, "CUSTOMER");
     }
 
-    // ========== ĐĂNG NHẬP (username hoặc email + password) ==========
+    // ================== ĐĂNG KÝ NHÀ PHÂN PHỐI ==================
 
+    @PostMapping("/register/supplier")
+    public ResponseEntity<?> registerDistributor(@RequestBody RegisterRequest request) {
+        return registerUser(request, UserType.SUPPLIER, "SUPPLIER");
+    }
+
+    // ================== LOGIN DÙNG CHUNG ==================
+    // identifier = username hoặc email
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         try {
-            // identifier: có thể là username hoặc email
             UsernamePasswordAuthenticationToken authToken =
                     new UsernamePasswordAuthenticationToken(
                             request.getIdentifier(),
@@ -88,19 +58,30 @@ public class AuthController {
             authenticationManager.authenticate(authToken);
         } catch (BadCredentialsException e) {
             return ResponseEntity.status(401).body("Sai tài khoản hoặc mật khẩu");
+        } catch (LockedException e) {
+            return ResponseEntity.status(403).body("Tài khoản đã bị khóa");
+        } catch (DisabledException e) {
+            return ResponseEntity.status(403).body("Tài khoản đang bị vô hiệu hóa");
         }
 
-        // Lấy user từ DB theo username hoặc email
+        // Lấy user theo username hoặc email
         UserAccount user = userAccountRepository
                 .findByUsernameOrEmail(request.getIdentifier(), request.getIdentifier())
-                .orElseThrow();
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy tài khoản"));
+
+        // Có thể check trạng thái nếu cần
+        if (user.getStatus() != AccountStatus.ACTIVE) {
+            return ResponseEntity.status(403).body("Tài khoản không ở trạng thái hoạt động");
+        }
 
         var springUser = User
                 .withUsername(user.getUsername())
                 .password(user.getPassword())
-                .authorities(user.getRoles().stream()
-                        .map(r -> "ROLE_" + r.getCode())
-                        .toArray(String[]::new))
+                .authorities(
+                        user.getRoles().stream()
+                                .map(r -> "ROLE_" + r.getCode())
+                                .toArray(String[]::new)
+                )
                 .build();
 
         String token = jwtService.generateToken(springUser);
@@ -113,7 +94,51 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
-    // ========== DTOs ==========
+    // ================== HÀM DÙNG CHUNG ==================
+
+    private ResponseEntity<?> registerUser(RegisterRequest request, UserType userType, String roleCode) {
+        if (userAccountRepository.existsByEmail(request.getEmail())) {
+            return ResponseEntity.badRequest().body("Email đã tồn tại");
+        }
+        if (userAccountRepository.existsByUsername(request.getUsername())) {
+            return ResponseEntity.badRequest().body("Username đã tồn tại");
+        }
+
+        var role = roleRepository.findByCode(roleCode);
+        if (role == null) {
+            return ResponseEntity.badRequest().body("Role " + roleCode + " không tồn tại, hãy seed dữ liệu ROLE trước");
+        }
+
+        UserAccount user = UserAccount.builder()
+                .username(request.getUsername())
+                .email(request.getEmail())
+                .password(passwordEncoder.encode(request.getPassword()))
+                .userType(userType)
+                .status(AccountStatus.ACTIVE)
+                .provider(SocialProvider.LOCAL)
+                .roles(Set.of(role))
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        userAccountRepository.save(user);
+
+        var springUser = User
+                .withUsername(user.getUsername())
+                .password(user.getPassword())
+                .authorities("ROLE_" + roleCode)
+                .build();
+
+        String token = jwtService.generateToken(springUser);
+
+        AuthResponse response = new AuthResponse();
+        response.setToken(token);
+        response.setUsername(user.getUsername());
+        response.setUserType(user.getUserType().name());
+
+        return ResponseEntity.ok(response);
+    }
+
+    // ================== DTOs ==================
 
     @Data
     public static class RegisterRequest {
@@ -122,10 +147,9 @@ public class AuthController {
         private String password;
     }
 
-    // FE gửi identifier = username hoặc email
     @Data
     public static class LoginRequest {
-        private String identifier;
+        private String identifier; // username hoặc email
         private String password;
     }
 
