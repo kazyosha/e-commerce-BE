@@ -1,0 +1,35 @@
+package com.c05.kaz.ecommercebackend.dto;
+
+import jakarta.validation.constraints.*;
+import lombok.Data;
+
+@Data
+public class EmployeeAccountRequest {
+
+    @NotBlank(message = "Username không được để trống")
+    @Size(min = 4, max = 50, message = "Username phải từ 4-50 ký tự")
+    private String username;
+
+    // Password mặc định
+    private String password = "123456@Abc";
+
+    @NotBlank(message = "Email không được để trống")
+    @Email(message = "Email không hợp lệ")
+    private String email;
+
+    @NotBlank(message = "Tên không được để trống")
+    private String name;
+
+    @Min(value = 18, message = "Tuổi phải >= 18")
+    @Max(value = 60, message = "Tuổi phải <= 60")
+    private int age;
+
+    @Pattern(regexp = "^(0|\\+84)[0-9]{9,10}$", message = "Số điện thoại không hợp lệ")
+    private String phone;
+
+    private String address;
+
+    @DecimalMin(value = "0.0", inclusive = false, message = "Lương phải > 0")
+    @DecimalMax(value = "100000000.0", inclusive = false, message = "Lương phải < 100,000,000")
+    private Double salary;
+}
