@@ -90,34 +90,52 @@ public class AuthController {
             return ResponseEntity.badRequest().body("Email không tồn tại trong hệ thống");
         }
 
-        // Tạo OTP 6 chữ số
-        String otp = String.valueOf((int) (Math.random() * 900000) + 100000);
-
-        // Lưu OTP tạm
-        otpStore.put(request.getEmail(), new OtpEntry(otp, LocalDateTime.now().plusMinutes(5)));
-
-        // In OTP ra log để debug (dev)
-        System.out.println("OTP for " + request.getEmail() + " = " + otp);
-
-        // Gửi email (bọc try/catch để không văng exception 500/403 lung tung)
         try {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setTo(request.getEmail());
-            message.setSubject("Mã OTP đặt lại mật khẩu");
-            message.setText("Mã OTP của bạn là: " + otp + "\nHết hạn sau 5 phút.");
-            message.setFrom("phamhaianhpc10@gmail.com"); // hoặc lấy từ @Value("${spring.mail.username}")
+            // Tạo + lưu + gửi OTP (dùng hàm dùng chung)
+            generateAndSendOtp(
+                    request.getEmail(),
+                    "Mã OTP đặt lại mật khẩu",
+                    "Mã OTP của bạn là: "
+            );
 
-            mailSender.send(message);
+            return ResponseEntity.ok("Đã gửi mã OTP đến email " + request.getEmail());
         } catch (Exception e) {
             e.printStackTrace();
-            // Nếu muốn strict thì:
-            // return ResponseEntity.status(500).body("Không gửi được email OTP");
-            // Còn để dev test flow thì vẫn trả OK:
+            // Dev mode: vẫn cho dùng OTP in trong log
             return ResponseEntity.ok("Đã tạo OTP (DEV MODE), kiểm tra server log để lấy mã.");
         }
-
-        return ResponseEntity.ok("Đã gửi mã OTP đến email " + request.getEmail());
     }
+
+    // Tạo + lưu + gửi OTP dùng chung
+    private void generateAndSendOtp(String email, String subject, String messagePrefix) {
+        String otp = generateOtpCode();
+
+        // Lưu OTP với hạn 5 phút
+        otpStore.put(email, new OtpEntry(otp, LocalDateTime.now().plusMinutes(5)));
+
+        // Log để dev test
+        System.out.println("OTP for " + email + " = " + otp);
+
+        // Gửi email
+        sendOtpEmail(email, subject, messagePrefix, otp);
+
+    }
+
+    // Chỉ sinh OTP 6 số
+    private String generateOtpCode() {
+        return String.valueOf((int) (Math.random() * 900000) + 100000);
+    }
+
+    // Gửi email OTP (có thể tái dùng cho nhiều loại OTP khác nhau)
+    private void sendOtpEmail(String email, String subject, String messagePrefix, String otp) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(email);
+        message.setSubject(subject);
+        message.setText(messagePrefix + otp + "\nHết hạn sau 5 phút.");
+        message.setFrom("phamhaianhpc10@gmail.com"); // hoặc @Value từ cấu hình
+        mailSender.send(message);
+    }
+
 
 
     @PostMapping("/reset-password")
