@@ -10,13 +10,17 @@ import com.c05.kaz.ecommercebackend.security.JwtService;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.authentication.*;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -29,33 +33,29 @@ public class AuthController {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
+    private final JavaMailSender mailSender; // ✅ Inject JavaMailSender
 
-    // ================== ĐĂNG KÝ KHÁCH HÀNG ==================
+    // Lưu OTP tạm thời vào memory, không vào DB
+    private final Map<String, OtpEntry> otpStore = new ConcurrentHashMap<>();
 
+    // ================== ĐĂNG KÝ ==================
     @PostMapping("/register/customer")
     public ResponseEntity<?> registerCustomer(@RequestBody RegisterRequest request) {
         return registerUser(request, UserType.CUSTOMER, "CUSTOMER");
     }
 
-    // ================== ĐĂNG KÝ NHÀ PHÂN PHỐI ==================
-
     @PostMapping("/register/supplier")
-    public ResponseEntity<?> registerDistributor(@RequestBody RegisterRequest request) {
+    public ResponseEntity<?> registerSupplier(@RequestBody RegisterRequest request) {
         return registerUser(request, UserType.SUPPLIER, "SUPPLIER");
     }
 
-    // ================== LOGIN DÙNG CHUNG ==================
-    // identifier = username hoặc email
+    // ================== LOGIN ==================
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         try {
-            UsernamePasswordAuthenticationToken authToken =
-                    new UsernamePasswordAuthenticationToken(
-                            request.getIdentifier(),
-                            request.getPassword()
-                    );
-
-            authenticationManager.authenticate(authToken);
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(request.getIdentifier(), request.getPassword())
+            );
         } catch (BadCredentialsException e) {
             return ResponseEntity.status(401).body("Sai tài khoản hoặc mật khẩu");
         } catch (LockedException e) {
@@ -64,50 +64,94 @@ public class AuthController {
             return ResponseEntity.status(403).body("Tài khoản đang bị vô hiệu hóa");
         }
 
-        // Lấy user theo username hoặc email
         UserAccount user = userAccountRepository
                 .findByUsernameOrEmail(request.getIdentifier(), request.getIdentifier())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy tài khoản"));
 
-        // Có thể check trạng thái nếu cần
         if (user.getStatus() != AccountStatus.ACTIVE) {
             return ResponseEntity.status(403).body("Tài khoản không ở trạng thái hoạt động");
         }
 
-        var springUser = User
-                .withUsername(user.getUsername())
+        var springUser = User.withUsername(user.getUsername())
                 .password(user.getPassword())
-                .authorities(
-                        user.getRoles().stream()
-                                .map(r -> "ROLE_" + r.getCode())
-                                .toArray(String[]::new)
-                )
+                .authorities(user.getRoles().stream().map(r -> "ROLE_" + r.getCode()).toArray(String[]::new))
                 .build();
 
         String token = jwtService.generateToken(springUser);
 
-        AuthResponse response = new AuthResponse();
-        response.setToken(token);
-        response.setUsername(user.getUsername());
-        response.setUserType(user.getUserType().name());
+        return ResponseEntity.ok(new AuthResponse(token, user.getUsername(), user.getUserType().name()));
+    }
 
-        return ResponseEntity.ok(response);
+    // ================== QUÊN MẬT KHẨU ==================
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@RequestBody ForgotPasswordRequest request) {
+        var userOpt = userAccountRepository.findByEmail(request.getEmail());
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body("Email không tồn tại trong hệ thống");
+        }
+
+        // Tạo OTP 6 chữ số
+        String otp = String.valueOf((int) (Math.random() * 900000) + 100000);
+
+        // Lưu OTP tạm
+        otpStore.put(request.getEmail(), new OtpEntry(otp, LocalDateTime.now().plusMinutes(5)));
+
+        // In OTP ra log để debug (dev)
+        System.out.println("OTP for " + request.getEmail() + " = " + otp);
+
+        // Gửi email (bọc try/catch để không văng exception 500/403 lung tung)
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setTo(request.getEmail());
+            message.setSubject("Mã OTP đặt lại mật khẩu");
+            message.setText("Mã OTP của bạn là: " + otp + "\nHết hạn sau 5 phút.");
+            message.setFrom("phamhaianhpc10@gmail.com"); // hoặc lấy từ @Value("${spring.mail.username}")
+
+            mailSender.send(message);
+        } catch (Exception e) {
+            e.printStackTrace();
+            // Nếu muốn strict thì:
+            // return ResponseEntity.status(500).body("Không gửi được email OTP");
+            // Còn để dev test flow thì vẫn trả OK:
+            return ResponseEntity.ok("Đã tạo OTP (DEV MODE), kiểm tra server log để lấy mã.");
+        }
+
+        return ResponseEntity.ok("Đã gửi mã OTP đến email " + request.getEmail());
+    }
+
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestBody ResetPasswordRequest request) {
+        OtpEntry entry = otpStore.get(request.getEmail());
+        if (entry == null) return ResponseEntity.badRequest().body("Không có mã OTP hợp lệ");
+        if (entry.expiry.isBefore(LocalDateTime.now())) {
+            otpStore.remove(request.getEmail());
+            return ResponseEntity.badRequest().body("Mã OTP đã hết hạn");
+        }
+        if (!entry.code.equals(request.getOtp())) {
+            return ResponseEntity.badRequest().body("Mã OTP không chính xác");
+        }
+
+        UserAccount user = userAccountRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userAccountRepository.save(user);
+
+        otpStore.remove(request.getEmail());
+
+        return ResponseEntity.ok("Đặt lại mật khẩu thành công");
     }
 
     // ================== HÀM DÙNG CHUNG ==================
-
     private ResponseEntity<?> registerUser(RegisterRequest request, UserType userType, String roleCode) {
-        if (userAccountRepository.existsByEmail(request.getEmail())) {
+        if (userAccountRepository.existsByEmail(request.getEmail()))
             return ResponseEntity.badRequest().body("Email đã tồn tại");
-        }
-        if (userAccountRepository.existsByUsername(request.getUsername())) {
+        if (userAccountRepository.existsByUsername(request.getUsername()))
             return ResponseEntity.badRequest().body("Username đã tồn tại");
-        }
 
         var role = roleRepository.findByCode(roleCode);
-        if (role == null) {
-            return ResponseEntity.badRequest().body("Role " + roleCode + " không tồn tại, hãy seed dữ liệu ROLE trước");
-        }
+        if (role == null) return ResponseEntity.badRequest().body("Role " + roleCode + " chưa tồn tại");
 
         UserAccount user = UserAccount.builder()
                 .username(request.getUsername())
@@ -122,24 +166,17 @@ public class AuthController {
 
         userAccountRepository.save(user);
 
-        var springUser = User
-                .withUsername(user.getUsername())
-                .password(user.getPassword())
-                .authorities("ROLE_" + roleCode)
-                .build();
+        String token = jwtService.generateToken(
+                User.withUsername(user.getUsername())
+                        .password(user.getPassword())
+                        .authorities("ROLE_" + roleCode)
+                        .build()
+        );
 
-        String token = jwtService.generateToken(springUser);
-
-        AuthResponse response = new AuthResponse();
-        response.setToken(token);
-        response.setUsername(user.getUsername());
-        response.setUserType(user.getUserType().name());
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(new AuthResponse(token, user.getUsername(), user.getUserType().name()));
     }
 
     // ================== DTOs ==================
-
     @Data
     public static class RegisterRequest {
         private String username;
@@ -154,9 +191,23 @@ public class AuthController {
     }
 
     @Data
-    public static class AuthResponse {
-        private String token;
-        private String username;
-        private String userType;
+    public static class ForgotPasswordRequest {
+        private String email;
     }
+
+    @Data
+    public static class ResetPasswordRequest {
+        private String email;
+        private String otp;
+        private String newPassword;
+    }
+
+    @Data
+    public static class AuthResponse {
+        private final String token;
+        private final String username;
+        private final String userType;
+    }
+
+    private record OtpEntry(String code, LocalDateTime expiry) {}
 }
