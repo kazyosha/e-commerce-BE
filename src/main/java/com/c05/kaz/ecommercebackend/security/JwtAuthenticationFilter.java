@@ -21,6 +21,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
     private final CustomUserDetailsService userDetailsService;
 
+    // Các endpoint không cần JWT
+    private static final String[] PUBLIC_ENDPOINTS = {
+            "/api/auth/login",
+            "/api/auth/register",
+            "/api/auth/register/customer",
+            "/api/auth/register/supplier",
+            "/api/auth/forgot-password",
+            "/api/auth/reset-password",
+            "/api/public/"
+    };
+
     @Override
     protected void doFilterInternal(
             HttpServletRequest request,
@@ -30,21 +41,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String path = request.getServletPath();
 
-        // 🔓 Bỏ qua hoàn toàn cho các endpoint auth/public (forgot-password ở đây)
-        if (path.startsWith("/api/auth/") || path.startsWith("/api/public/")) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        // Bỏ qua preflight
-        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+        // Bỏ qua các endpoint public + preflight
+        if (isPublic(path) || "OPTIONS".equalsIgnoreCase(request.getMethod())) {
             filterChain.doFilter(request, response);
             return;
         }
 
         String authHeader = request.getHeader("Authorization");
+
+        // Không có token -> cho qua, SecurityConfig sẽ chặn nếu endpoint yêu cầu auth
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            // Không có token => cho qua, endpoint nào yêu cầu auth sẽ bị chặn trong SecurityConfig
             filterChain.doFilter(request, response);
             return;
         }
@@ -55,18 +61,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             username = jwtService.extractUsername(jwt);
         } catch (Exception e) {
-            // Token lỗi -> không set auth, cho qua
+            // Token lỗi -> không set auth, để SecurityConfig xử lý tiếp
             filterChain.doFilter(request, response);
             return;
         }
 
+        // Nếu chưa có auth trong context thì xác thực token
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             try {
                 UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+
                 boolean valid = false;
                 try {
                     valid = jwtService.isTokenValid(jwt, userDetails);
-                } catch (Exception ignored) {}
+                } catch (Exception ignored) {
+                }
 
                 if (valid) {
                     UsernamePasswordAuthenticationToken authToken =
@@ -81,10 +90,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
             } catch (Exception ignored) {
-                // Không tìm thấy user -> bỏ qua
+                // không tìm thấy user hoặc lỗi -> không set auth
             }
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private boolean isPublic(String path) {
+        if (path == null) return false;
+
+        // Cho toàn bộ /api/public/**
+        if (path.startsWith("/api/public/")) return true;
+
+        // Cho các endpoint auth public cụ thể
+        if (path.equals("/api/auth/login")) return true;
+        if (path.equals("/api/auth/forgot-password")) return true;
+        if (path.equals("/api/auth/reset-password")) return true;
+        if (path.startsWith("/api/auth/register")) return true;
+
+        return false;
     }
 }

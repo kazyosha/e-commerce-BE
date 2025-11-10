@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
@@ -17,7 +18,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 
-@Configuration
+@Component
 @RequiredArgsConstructor
 public class DataInitializer implements CommandLineRunner {
 

@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.authentication.*;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
@@ -136,8 +137,6 @@ public class AuthController {
         mailSender.send(message);
     }
 
-
-
     @PostMapping("/reset-password")
     public ResponseEntity<?> resetPassword(@RequestBody ResetPasswordRequest request) {
         OtpEntry entry = otpStore.get(request.getEmail());
@@ -194,6 +193,32 @@ public class AuthController {
         return ResponseEntity.ok(new AuthResponse(token, user.getUsername(), user.getUserType().name()));
     }
 
+    @PostMapping("/change-password")
+    public ResponseEntity<?> changePassword(@RequestBody ChangePasswordRequest request,
+                                            Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(401).body("Bạn chưa đăng nhập");
+        }
+
+        String username = authentication.getName();
+
+        UserAccount user = userAccountRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            return ResponseEntity.badRequest().body("Mật khẩu hiện tại không đúng");
+        }
+
+        if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
+            return ResponseEntity.badRequest().body("Mật khẩu mới không được trùng mật khẩu hiện tại");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userAccountRepository.save(user);
+
+        return ResponseEntity.ok("Đổi mật khẩu thành công");
+    }
+
     // ================== DTOs ==================
     @Data
     public static class RegisterRequest {
@@ -225,6 +250,12 @@ public class AuthController {
         private final String token;
         private final String username;
         private final String userType;
+    }
+
+    @Data
+    public static class ChangePasswordRequest {
+        private String currentPassword;
+        private String newPassword;
     }
 
     private record OtpEntry(String code, LocalDateTime expiry) {}
