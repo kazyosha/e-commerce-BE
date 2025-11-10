@@ -5,15 +5,18 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -30,13 +33,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String path = request.getServletPath();
 
-        // 🔓 Bỏ qua hoàn toàn cho các endpoint auth/public (forgot-password ở đây)
+        // chỉ bỏ qua auth + public
         if (path.startsWith("/api/auth/") || path.startsWith("/api/public/")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        // Bỏ qua preflight
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
             filterChain.doFilter(request, response);
             return;
@@ -44,31 +46,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String authHeader = request.getHeader("Authorization");
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            // Không có token => cho qua, endpoint nào yêu cầu auth sẽ bị chặn trong SecurityConfig
             filterChain.doFilter(request, response);
             return;
         }
 
         String jwt = authHeader.substring(7);
-        String username;
 
         try {
-            username = jwtService.extractUsername(jwt);
-        } catch (Exception e) {
-            // Token lỗi -> không set auth, cho qua
-            filterChain.doFilter(request, response);
-            return;
-        }
+            String username = jwtService.extractUsername(jwt);
 
-        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            try {
+            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-                boolean valid = false;
-                try {
-                    valid = jwtService.isTokenValid(jwt, userDetails);
-                } catch (Exception ignored) {}
 
-                if (valid) {
+                if (jwtService.isTokenValid(jwt, userDetails)) {
                     UsernamePasswordAuthenticationToken authToken =
                             new UsernamePasswordAuthenticationToken(
                                     userDetails,
@@ -80,11 +70,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     );
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
-            } catch (Exception ignored) {
-                // Không tìm thấy user -> bỏ qua
             }
+        } catch (Exception e) {
+            // token lỗi -> không set auth, SecurityConfig sẽ chặn những URL cần auth
         }
 
         filterChain.doFilter(request, response);
     }
 }
+
