@@ -1,11 +1,14 @@
 package com.c05.kaz.ecommercebackend.repository;
 
 import com.c05.kaz.ecommercebackend.entity.UserAccount;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
 
 public interface UserAccountRepository extends JpaRepository<UserAccount, Long> {
+
     Optional<UserAccount> findByUsername(String username);
 
     Optional<UserAccount> findByEmail(String email);
@@ -15,4 +18,9 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, Long> 
     boolean existsByEmail(String email);
 
     boolean existsByUsername(String username);
+
+    // Thêm cho chức năng search + phân trang
+    Page<UserAccount> findByEmailContainingIgnoreCaseOrUsernameContainingIgnoreCase(
+            String email, String username, Pageable pageable
+    );
 }
