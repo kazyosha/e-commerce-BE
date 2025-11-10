@@ -1,6 +1,6 @@
 package com.c05.kaz.ecommercebackend.controller;
 
-import com.c05.kaz.ecommercebackend.dto.EmployeeAccountRequest;
+import com.c05.kaz.ecommercebackend.dto.UserAccountDTO;
 import com.c05.kaz.ecommercebackend.entity.UserAccount;
 import com.c05.kaz.ecommercebackend.services.UserAccountService;
 import jakarta.validation.Valid;
@@ -21,22 +21,23 @@ public class UserAccountController {
     public ResponseEntity<Page<UserAccount>> getUsers(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "5") int size,
-            @RequestParam(defaultValue = "") String search
+            @RequestParam(defaultValue = "") String search,
+            @RequestParam(required = false) String userType
     ) {
-        Page<UserAccount> result = userAccountService.getUsers(page, size, search);
+        Page<UserAccount> result = userAccountService.getUsers(page, size, search,userType);
         return ResponseEntity.ok(result);
     }
 
 
     @PostMapping
-    public ResponseEntity<?> createUser(@Valid @RequestBody EmployeeAccountRequest req) {
+    public ResponseEntity<?> createUser(@Valid @RequestBody UserAccountDTO req) {
         userAccountService.createEmployee(req);
         return ResponseEntity.ok("Tạo tài khoản nhân viên thành công!");
     }
 
 
     @PostMapping("/employee")
-    public ResponseEntity<?> createEmployee(@Valid @RequestBody EmployeeAccountRequest req) {
+    public ResponseEntity<?> createEmployee(@Valid @RequestBody UserAccountDTO req) {
         userAccountService.createEmployee(req);
         return ResponseEntity.ok("Tạo tài khoản nhân viên thành công!");
     }

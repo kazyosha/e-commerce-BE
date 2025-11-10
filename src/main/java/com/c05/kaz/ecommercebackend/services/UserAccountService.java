@@ -1,6 +1,6 @@
 package com.c05.kaz.ecommercebackend.services;
 
-import com.c05.kaz.ecommercebackend.dto.EmployeeAccountRequest;
+import com.c05.kaz.ecommercebackend.dto.UserAccountDTO;
 import com.c05.kaz.ecommercebackend.entity.UserAccount;
 import com.c05.kaz.ecommercebackend.enums.AccountStatus;
 import com.c05.kaz.ecommercebackend.enums.SocialProvider;
@@ -24,22 +24,31 @@ public class UserAccountService {
 
 
     @Transactional(readOnly = true)
-    public Page<UserAccount> getUsers(int page, int size, String search) {
+    public Page<UserAccount> getUsers(int page, int size, String search, String userType) {
         PageRequest pageable = PageRequest.of(page, size);
 
-        if (search == null || search.isBlank()) {
-            return userAccountRepository.findAll(pageable);
+        // Chuẩn hóa search
+        String keyword = (search == null || search.isBlank())
+                ? null
+                : search.trim();
+
+        // Map String -> Enum UserType (HR, ADMIN, CUSTOMER, ...)
+        UserType type = null;
+        if (userType != null && !userType.isBlank()) {
+            try {
+                type = UserType.valueOf(userType); // "HR" -> UserType.HR
+            } catch (IllegalArgumentException e) {
+                // Nếu FE gửi bậy thì coi như không filter
+                type = null;
+            }
         }
 
-        return userAccountRepository
-                .findByEmailContainingIgnoreCaseOrUsernameContainingIgnoreCase(
-                        search.trim(), search.trim(), pageable
-                );
+        return userAccountRepository.searchUsers(type, keyword, pageable);
     }
 
 
     @Transactional
-    public void createEmployee(EmployeeAccountRequest req) {
+    public void createEmployee(UserAccountDTO req) {
         if (userAccountRepository.existsByUsername(req.getUsername())) {
             throw new RuntimeException("Username đã tồn tại");
         }
@@ -51,6 +60,7 @@ public class UserAccountService {
                 .username(req.getUsername())
                 .password(passwordEncoder.encode("123456@Abc")) // default
                 .email(req.getEmail())
+                .fullName(req.getFullName())
                 .userType(UserType.HR)       // hoặc ADMIN/STAFF tuỳ quy ước
                 .status(AccountStatus.ACTIVE)
                 .provider(SocialProvider.LOCAL)

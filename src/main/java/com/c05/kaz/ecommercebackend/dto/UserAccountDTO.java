@@ -1,14 +1,24 @@
 package com.c05.kaz.ecommercebackend.dto;
 
 import jakarta.validation.constraints.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
-public class EmployeeAccountRequest {
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class UserAccountDTO {
 
     @NotBlank(message = "Username không được để trống")
     @Size(min = 4, max = 50, message = "Username phải từ 4-50 ký tự")
     private String username;
+
+    @NotBlank(message = "Username không được để trống")
+    @Size(min = 4, max = 50, message = "Tên phải từ 4-50 ký tự")
+    private String fullName;
 
     // Password mặc định
     private String password = "123456@Abc";
@@ -17,8 +27,6 @@ public class EmployeeAccountRequest {
     @Email(message = "Email không hợp lệ")
     private String email;
 
-    @NotBlank(message = "Tên không được để trống")
-    private String name;
 
     @Min(value = 18, message = "Tuổi phải >= 18")
     @Max(value = 60, message = "Tuổi phải <= 60")

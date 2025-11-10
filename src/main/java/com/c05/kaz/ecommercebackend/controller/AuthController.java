@@ -16,6 +16,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.Set;
 
 @RestController
@@ -78,7 +79,6 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         try {
-            // identifier: có thể là username hoặc email
             UsernamePasswordAuthenticationToken authToken =
                     new UsernamePasswordAuthenticationToken(
                             request.getIdentifier(),
@@ -86,11 +86,23 @@ public class AuthController {
                     );
 
             authenticationManager.authenticate(authToken);
+
+        } catch (LockedException e) {
+            // ✅ Thêm đoạn này
+            return ResponseEntity.status(403)
+                    .body(Map.of("message", "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên."));
         } catch (BadCredentialsException e) {
-            return ResponseEntity.status(401).body("Sai tài khoản hoặc mật khẩu");
+            return ResponseEntity.status(401)
+                    .body(Map.of("message", "Sai tài khoản hoặc mật khẩu"));
+        } catch (DisabledException e) {
+            return ResponseEntity.status(403)
+                    .body(Map.of("message", "Tài khoản của bạn chưa được kích hoạt"));
+        } catch (Exception e) {
+            return ResponseEntity.status(500)
+                    .body(Map.of("message", "Lỗi hệ thống. Vui lòng thử lại sau."));
         }
 
-        // Lấy user từ DB theo username hoặc email
+        // Nếu xác thực thành công
         UserAccount user = userAccountRepository
                 .findByUsernameOrEmail(request.getIdentifier(), request.getIdentifier())
                 .orElseThrow();
@@ -112,6 +124,7 @@ public class AuthController {
 
         return ResponseEntity.ok(response);
     }
+
 
     // ========== DTOs ==========
 
