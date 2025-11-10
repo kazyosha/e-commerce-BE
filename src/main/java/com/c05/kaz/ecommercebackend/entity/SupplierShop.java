@@ -1,5 +1,6 @@
 package com.c05.kaz.ecommercebackend.entity;
 
+import com.c05.kaz.ecommercebackend.enums.SupplierStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -38,7 +39,10 @@ public class SupplierShop {
     private String avatarUrl;
 
     @Column(length = 255)
-    private String mapLocation; // toạ độ/link map nếu cần
+    private String mapLocation;
+
+    @OneToMany(mappedBy = "supplier", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<SupplierDocument> documents;
 
     @OneToMany(mappedBy = "supplier")
     private List<Product> products;
@@ -51,5 +55,8 @@ public class SupplierShop {
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    @Enumerated(EnumType.STRING)
+    private SupplierStatus status;
 }
 

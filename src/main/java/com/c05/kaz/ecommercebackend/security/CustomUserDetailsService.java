@@ -32,7 +32,7 @@ public class CustomUserDetailsService implements UserDetailsService {
         boolean accountNonLocked = user.getStatus() != AccountStatus.BLOCKED;
 
         return new org.springframework.security.core.userdetails.User(
-                user.getUsername(), // vẫn dùng username làm principal
+                user.getUsername(),
                 user.getPassword(),
                 enabled,
                 true,
