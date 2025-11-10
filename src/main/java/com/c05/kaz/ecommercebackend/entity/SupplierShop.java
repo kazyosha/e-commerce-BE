@@ -58,5 +58,20 @@ public class SupplierShop {
 
     @Enumerated(EnumType.STRING)
     private SupplierStatus status;
+
+    @PrePersist
+    public void prePersist() {
+        LocalDateTime now = LocalDateTime.now();
+        this.createdAt = now;
+        this.updatedAt = now;
+        if (this.status == null) {
+            this.status = SupplierStatus.PENDING;
+        }
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        this.updatedAt = LocalDateTime.now();
+    }
 }
 
