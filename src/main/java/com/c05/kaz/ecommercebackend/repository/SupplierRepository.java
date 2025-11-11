@@ -19,5 +19,4 @@ public interface SupplierRepository extends JpaRepository<SupplierShop, Long> {
     );
 
     List<SupplierShop> findByStatus(SupplierStatus status);
-
 }

@@ -16,26 +16,73 @@ public class CloudinaryService {
     private final Cloudinary cloudinary;
 
     /**
-     * Upload file lên Cloudinary và trả về URL công khai.
-     *
-     * @param file file ảnh từ FE (MultipartFile)
-     * @param folderName tên thư mục trong Cloudinary (VD: employee_avatars)
-     * @return secure_url (link ảnh công khai)
+     * ✅ Upload file chung (tự động xác định loại file)
      */
     public String uploadFile(MultipartFile file, String folderName) throws IOException {
+        if (file == null || file.isEmpty()) {
+            throw new RuntimeException("File ảnh trống");
+        }
+
         Map uploadResult = cloudinary.uploader().upload(
                 file.getBytes(),
                 ObjectUtils.asMap(
-                        "folder", folderName,         // thư mục Cloudinary
-                        "resource_type", "auto"       // auto: cho phép ảnh/video/pdf
+                        "folder", folderName,
+                        "resource_type", "auto" // cho phép ảnh/video/pdf
                 )
         );
-        return uploadResult.get("secure_url").toString();
+
+        return (String) uploadResult.get("secure_url");
     }
 
     /**
-     * Xóa file khỏi Cloudinary bằng publicId.
-     * (publicId là phần đường dẫn không có .jpg, ví dụ: employee_avatars/abc123)
+     * ✅ Upload avatar cho HR / nhân viên
+     */
+    public String uploadEmployeeAvatar(MultipartFile file, Long userId) {
+        return uploadWithCustomPath(file, "ecommerce/employees", "employee_" + userId);
+    }
+
+    /**
+     * ✅ Upload avatar cho khách hàng
+     */
+    public String uploadCustomerAvatar(MultipartFile file, Long userId) {
+        return uploadWithCustomPath(file, "ecommerce/customers", "customer_" + userId);
+    }
+
+    /**
+     * ✅ Upload avatar cho shop / nhà cung cấp
+     */
+    public String uploadShopAvatar(MultipartFile file, Long supplierId) {
+        return uploadWithCustomPath(file, "ecommerce/shops", "shop_" + supplierId);
+    }
+
+    /**
+     * ✅ Hàm helper: upload với đường dẫn tùy chỉnh
+     */
+    private String uploadWithCustomPath(MultipartFile file, String folder, String prefix) {
+        if (file == null || file.isEmpty()) {
+            throw new RuntimeException("File ảnh trống");
+        }
+
+        try {
+            Map uploadResult = cloudinary.uploader().upload(
+                    file.getBytes(),
+                    ObjectUtils.asMap(
+                            "folder", folder,
+                            "public_id", prefix + "_" + System.currentTimeMillis(),
+                            "overwrite", true,
+                            "resource_type", "image"
+                    )
+            );
+
+            return (String) uploadResult.get("secure_url");
+        } catch (IOException e) {
+            throw new RuntimeException("Upload file lên Cloudinary thất bại", e);
+        }
+    }
+
+    /**
+     * ✅ Xóa file khỏi Cloudinary bằng publicId
+     * (publicId là phần sau "upload/" nhưng không có .jpg, .png,...)
      */
     public void deleteFile(String publicId) throws IOException {
         cloudinary.uploader().destroy(publicId, ObjectUtils.emptyMap());
