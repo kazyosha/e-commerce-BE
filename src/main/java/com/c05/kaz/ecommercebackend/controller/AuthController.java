@@ -220,9 +220,6 @@ public class AuthController {
     }
 
 
-    // ========== DTOs ==========
-
-    // ================== DTOs ==================
     @Data
     public static class RegisterRequest {
         private String username;
