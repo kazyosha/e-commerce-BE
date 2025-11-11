@@ -1,5 +1,6 @@
 package com.c05.kaz.ecommercebackend.entity;
 
+import com.c05.kaz.ecommercebackend.enums.EmailOtpPurpose;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -18,13 +19,15 @@ public class EmailOtp {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Gắn với user đang upgrade
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private UserAccount user;
 
     @Column(nullable = false, length = 10)
     private String code;
+
+    @Enumerated(EnumType.STRING)
+    private EmailOtpPurpose purpose;
 
     private LocalDateTime createdAt;
     private LocalDateTime expiresAt;

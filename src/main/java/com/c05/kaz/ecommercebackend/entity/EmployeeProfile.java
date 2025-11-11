@@ -37,7 +37,7 @@ public class EmployeeProfile {
     @Column(length = 255)
     private String address;
 
-    private Long salary; // validate >0 && <100_000_000
+    private Long salary;
 
     @OneToMany(mappedBy = "createdBy")
     @Builder.Default

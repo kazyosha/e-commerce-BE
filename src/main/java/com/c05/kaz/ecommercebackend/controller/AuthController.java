@@ -26,7 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = { "http://localhost:8080", "http://localhost:8081" })
 public class AuthController {
 
     private final UserAccountRepository userAccountRepository;
@@ -219,7 +219,7 @@ public class AuthController {
         return ResponseEntity.ok("Đổi mật khẩu thành công");
     }
 
-    // ================== DTOs ==================
+
     @Data
     public static class RegisterRequest {
         private String username;

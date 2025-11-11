@@ -4,6 +4,7 @@ import com.c05.kaz.ecommercebackend.enums.AccountStatus;
 import com.c05.kaz.ecommercebackend.enums.SocialProvider;
 import com.c05.kaz.ecommercebackend.enums.UserType;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Pattern;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -28,12 +29,16 @@ public class UserAccount {
     // dùng cho login local + social
     @Column(nullable = false, unique = true, length = 100)
     private String username;
-
+    @Column
+    private String fullName;
     @Column(length = 255)
     private String password; // mã hoá (BCrypt)
 
     @Column(nullable = false, unique = true, length = 150)
     private String email;
+
+    @Column
+    private String phone;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
