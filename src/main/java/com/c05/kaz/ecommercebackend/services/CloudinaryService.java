@@ -38,4 +38,26 @@ public class CloudinaryService {
             throw new RuntimeException("Upload avatar lên Cloudinary thất bại", e);
         }
     }
+
+    // Avatar khách hàng
+    public String uploadCustomerAvatar(MultipartFile file, Long userId) {
+        if (file == null || file.isEmpty()) {
+            throw new RuntimeException("File ảnh trống");
+        }
+
+        try {
+            Map uploadResult = cloudinary.uploader().upload(
+                    file.getBytes(),
+                    ObjectUtils.asMap(
+                            "folder", "ecommerce/customers",
+                            "public_id", "customer_" + userId + "_" + System.currentTimeMillis(),
+                            "overwrite", true,
+                            "resource_type", "image"
+                    )
+            );
+            return (String) uploadResult.get("secure_url");
+        } catch (IOException e) {
+            throw new RuntimeException("Upload avatar khách hàng lên Cloudinary thất bại", e);
+        }
+    }
 }

@@ -1,26 +1,21 @@
 package com.c05.kaz.ecommercebackend.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.Set;
 
 @Entity
 @Table(name = "customers")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class CustomerProfile {
 
     @Id
-    private Long id; // trùng với user_id
+    private Long id; // shared PK với user nếu dùng @MapsId
 
     @OneToOne
     @MapsId
@@ -30,20 +25,13 @@ public class CustomerProfile {
     @Column(length = 150)
     private String fullName;
 
-    private LocalDate birthDate;
+    private java.time.LocalDate birthDate;
 
     @Column(length = 20)
     private String phone;
 
     @Column(length = 255)
     private String address;
-
-    // mối quan tâm: many-to-many với Category
-    @ManyToMany
-    @JoinTable(name = "customer_interests",
-            joinColumns = @JoinColumn(name = "customer_id"),
-            inverseJoinColumns = @JoinColumn(name = "category_id"))
-    private Set<Category> interests = new HashSet<>();
 
     private String avatarUrl;
 
