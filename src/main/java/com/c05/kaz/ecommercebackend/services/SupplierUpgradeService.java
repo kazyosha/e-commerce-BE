@@ -94,6 +94,8 @@ public class SupplierUpgradeService {
         SupplierShop shop = supplierRepo.findByUser_Id(user.getId())
                 .orElseThrow(() -> new RuntimeException("Chưa có thông tin shop"));
 
+        user.setEmailVerified(true);
+
         // User vẫn login bình thường
         user.setStatus(AccountStatus.ACTIVE);
 
