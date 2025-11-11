@@ -19,7 +19,8 @@ import java.util.List;
 public class EmployeeProfile {
 
     @Id
-    private Long id; // trùng với user_id
+    @Column(name = "user_id")
+    private Long id; // Trùng với users.id
 
     @OneToOne
     @MapsId
@@ -35,15 +36,35 @@ public class EmployeeProfile {
     private String phone;
 
     @Column(length = 255)
+    private String email;
+
+    @Column(length = 255)
     private String address;
+
+    @Column(length = 500)
+    private String avatarUrl;
 
     private Long salary;
 
-    @OneToMany(mappedBy = "createdBy")
+    @OneToMany(mappedBy = "createdBy", cascade = CascadeType.ALL, orphanRemoval = false)
     @Builder.Default
     private List<ViolationNote> createdViolationNotes = new ArrayList<>();
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-}
 
+    @PrePersist
+    @PreUpdate
+    private void beforeSave() {
+        // Gán createdAt / updatedAt
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
+        updatedAt = LocalDateTime.now();
+
+        // ✅ Đồng bộ email từ UserAccount
+        if (user != null && user.getEmail() != null) {
+            this.email = user.getEmail();
+        }
+    }
+}
