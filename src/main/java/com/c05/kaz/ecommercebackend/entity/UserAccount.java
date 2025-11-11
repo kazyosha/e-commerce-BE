@@ -29,16 +29,13 @@ public class UserAccount {
     // dùng cho login local + social
     @Column(nullable = false, unique = true, length = 100)
     private String username;
-    @Column
-    private String fullName;
+
     @Column(length = 255)
     private String password; // mã hoá (BCrypt)
 
     @Column(nullable = false, unique = true, length = 150)
     private String email;
 
-    @Column
-    private String phone;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

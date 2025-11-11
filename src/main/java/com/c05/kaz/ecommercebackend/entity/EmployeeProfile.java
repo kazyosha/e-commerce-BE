@@ -1,25 +1,23 @@
 package com.c05.kaz.ecommercebackend.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
+import lombok.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
 @Table(name = "employee_profiles")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class EmployeeProfile {
 
     @Id
-    private Long id; // trùng với user_id
+    @Column(name = "user_id")
+    private Long id; // Trùng với users.id
 
     @OneToOne
     @MapsId
@@ -35,15 +33,35 @@ public class EmployeeProfile {
     private String phone;
 
     @Column(length = 255)
+    private String email;
+
+    @Column(length = 255)
     private String address;
 
-    private Long salary; // validate >0 && <100_000_000
+    @Column(length = 500)
+    private String avatarUrl;
 
-    @OneToMany(mappedBy = "createdBy")
+    private Long salary;
+
+    @OneToMany(mappedBy = "createdBy", cascade = CascadeType.ALL, orphanRemoval = false)
     @Builder.Default
     private List<ViolationNote> createdViolationNotes = new ArrayList<>();
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-}
 
+    @PrePersist
+    @PreUpdate
+    private void beforeSave() {
+        // Gán createdAt / updatedAt
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
+        updatedAt = LocalDateTime.now();
+
+        // ✅ Đồng bộ email từ UserAccount
+        if (user != null && user.getEmail() != null) {
+            this.email = user.getEmail();
+        }
+    }
+}
