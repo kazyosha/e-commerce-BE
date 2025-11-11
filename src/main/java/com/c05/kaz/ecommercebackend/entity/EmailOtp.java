@@ -1,5 +1,6 @@
 package com.c05.kaz.ecommercebackend.entity;
 
+import com.c05.kaz.ecommercebackend.enums.EmailOtpPurpose;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -24,6 +25,9 @@ public class EmailOtp {
 
     @Column(nullable = false, length = 10)
     private String code;
+
+    @Enumerated(EnumType.STRING)
+    private EmailOtpPurpose purpose;
 
     private LocalDateTime createdAt;
     private LocalDateTime expiresAt;

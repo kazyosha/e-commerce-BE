@@ -18,7 +18,6 @@ public class EmailVerificationCustomerService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
     }
 
-    /** Gửi OTP xác thực email cho user đang đăng nhập */
     public void sendEmailVerifyOtp(String principalName) {
         UserAccount user = getCurrentUser(principalName);
 
@@ -26,19 +25,16 @@ public class EmailVerificationCustomerService {
             throw new RuntimeException("Email đã được xác thực");
         }
 
-        otpService.sendVerifyOtp(user);
+        otpService.sendVerifyEmailOtp(user);
     }
 
-    /** Xác thực OTP & set emailVerified = true */
     @Transactional
     public void verifyEmail(String principalName, String code) {
         UserAccount user = getCurrentUser(principalName);
 
-        if (user.isEmailVerified()) {
-            return; // đã verify rồi thì thôi
-        }
+        if (user.isEmailVerified()) return;
 
-        boolean ok = otpService.verifyOtp(user, code);
+        boolean ok = otpService.verifyEmailOtp(user, code);
         if (!ok) {
             throw new RuntimeException("Mã OTP không hợp lệ hoặc đã hết hạn");
         }
@@ -47,3 +43,4 @@ public class EmailVerificationCustomerService {
         userRepo.save(user);
     }
 }
+

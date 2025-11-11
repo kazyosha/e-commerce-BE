@@ -2,6 +2,7 @@ package com.c05.kaz.ecommercebackend.services;
 
 import com.c05.kaz.ecommercebackend.entity.EmailOtp;
 import com.c05.kaz.ecommercebackend.entity.UserAccount;
+import com.c05.kaz.ecommercebackend.enums.EmailOtpPurpose;
 import com.c05.kaz.ecommercebackend.repository.EmailOtpRepository;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
@@ -20,28 +21,31 @@ public class OtpService {
     private final JavaMailSender mailSender;
     private final EmailOtpRepository emailOtpRepository;
 
-    /** Tạo & lưu OTP, trả về code */
-    private String generateOtpCode(UserAccount user) {
-        String code = String.format("%06d", new Random().nextInt(999999));
+    private String randomCode() {
+        return String.format("%06d", new Random().nextInt(999999));
+    }
 
+    private void saveAndSendHtml(
+            UserAccount user,
+            String code,
+            EmailOtpPurpose purpose,
+            String subject,
+            String htmlBody
+    ) {
         EmailOtp otp = EmailOtp.builder()
                 .user(user)
                 .code(code)
+                .purpose(purpose)
                 .createdAt(LocalDateTime.now())
                 .expiresAt(LocalDateTime.now().plusMinutes(5))
                 .used(false)
                 .build();
-
         emailOtpRepository.save(otp);
-        return code;
-    }
 
-    /** Gửi email HTML đơn giản */
-    private void sendEmail(String to, String subject, String htmlBody) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            helper.setTo(to);
+            helper.setTo(user.getEmail());
             helper.setSubject(subject);
             helper.setText(htmlBody, true);
             mailSender.send(message);
@@ -50,34 +54,41 @@ public class OtpService {
         }
     }
 
-    /** OTP dùng cho nâng cấp nhà cung cấp */
+    /* ================== SUPPLIER UPGRADE ================== */
+
     public void sendUpgradeOtp(UserAccount user) {
-        String code = generateOtpCode(user);
-
-        String html = "<p>Xin chào <b>" + user.getUsername() + "</b>,</p>"
-                + "<p>Mã OTP xác nhận nâng cấp tài khoản nhà cung cấp của bạn là: "
-                + "<b style='font-size:18px;'>" + code + "</b></p>"
+        String code = randomCode();
+        String subject = "Mã OTP xác nhận đăng ký nhà cung cấp";
+        String body = "<p>Xin chào " + user.getUsername() + ",</p>"
+                + "<p>Mã OTP xác nhận nâng cấp nhà cung cấp của bạn là: <b>" + code + "</b></p>"
                 + "<p>Mã có hiệu lực trong 5 phút.</p>";
-
-        sendEmail(user.getEmail(), "Mã OTP xác nhận đăng ký nhà cung cấp", html);
+        saveAndSendHtml(user, code, EmailOtpPurpose.SUPPLIER_UPGRADE, subject, body);
     }
 
-    /** OTP dùng cho xác thực email tài khoản khách hàng */
-    public void sendVerifyOtp(UserAccount user) {
-        String code = generateOtpCode(user);
-
-        String html = "<p>Xin chào <b>" + user.getUsername() + "</b>,</p>"
-                + "<p>Mã OTP xác thực email tài khoản của bạn là: "
-                + "<b style='font-size:18px;'>" + code + "</b></p>"
-                + "<p>Mã có hiệu lực trong 5 phút.</p>";
-
-        sendEmail(user.getEmail(), "Xác thực email tài khoản Kaz E-Commerce", html);
+    public boolean verifyUpgradeOtp(UserAccount user, String code) {
+        return verify(user, code, EmailOtpPurpose.SUPPLIER_UPGRADE);
     }
 
-    /** Xác thực OTP (dùng chung cho cả 2 luồng) */
-    public boolean verifyOtp(UserAccount user, String code) {
+    /* ================== EMAIL VERIFY (KHÁCH HÀNG) ================== */
+
+    public void sendVerifyEmailOtp(UserAccount user) {
+        String code = randomCode();
+        String subject = "Xác thực email tài khoản Kaz E-Commerce";
+        String body = "<p>Xin chào " + user.getUsername() + ",</p>"
+                + "<p>Mã OTP xác thực email của bạn là: <b>" + code + "</b></p>"
+                + "<p>Mã có hiệu lực trong 5 phút.</p>";
+        saveAndSendHtml(user, code, EmailOtpPurpose.EMAIL_VERIFY, subject, body);
+    }
+
+    public boolean verifyEmailOtp(UserAccount user, String code) {
+        return verify(user, code, EmailOtpPurpose.EMAIL_VERIFY);
+    }
+
+    /* ================== COMMON VERIFY ================== */
+
+    private boolean verify(UserAccount user, String code, EmailOtpPurpose purpose) {
         EmailOtp otp = emailOtpRepository
-                .findTopByUserAndCodeAndUsedFalseOrderByCreatedAtDesc(user, code)
+                .findTopByUserAndCodeAndPurposeAndUsedFalseOrderByCreatedAtDesc(user, code, purpose)
                 .orElse(null);
 
         if (otp == null) return false;

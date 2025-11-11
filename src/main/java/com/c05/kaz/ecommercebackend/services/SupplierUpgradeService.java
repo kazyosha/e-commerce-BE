@@ -76,7 +76,7 @@ public class SupplierUpgradeService {
         }
     }
 
-    // B3: gửi OTP qua email
+    @Transactional
     public void sendOtp(String principalName) {
         UserAccount user = getCurrentUser(principalName);
         otpService.sendUpgradeOtp(user);
@@ -86,7 +86,7 @@ public class SupplierUpgradeService {
     public void verifyOtpAndUpgrade(String principalName, String code) {
         UserAccount user = getCurrentUser(principalName);
 
-        boolean ok = otpService.verifyOtp(user, code);
+        boolean ok = otpService.verifyUpgradeOtp(user, code);
         if (!ok) {
             throw new RuntimeException("OTP không hợp lệ hoặc đã hết hạn");
         }
@@ -94,22 +94,15 @@ public class SupplierUpgradeService {
         SupplierShop shop = supplierRepo.findByUser_Id(user.getId())
                 .orElseThrow(() -> new RuntimeException("Chưa có thông tin shop"));
 
-        user.setEmailVerified(true);
-
-        // User vẫn login bình thường
-        user.setStatus(AccountStatus.ACTIVE);
-
-        // Có thể set SUPPLIER luôn + role SUPPLIER
+        // user vẫn dùng được tài khoản
         user.setUserType(UserType.SUPPLIER);
         user.getRoles().add(roleRepo.findByCode("SUPPLIER"));
         userRepo.save(user);
 
-        // Hồ sơ nhà cung cấp ở trạng thái CHỜ DUYỆT
         shop.setStatus(SupplierStatus.PENDING);
         shop.setUpdatedAt(LocalDateTime.now());
         supplierRepo.save(shop);
     }
-
     // DTO nhỏ cho documents
     @lombok.Data
     public static class DocumentRequest {
