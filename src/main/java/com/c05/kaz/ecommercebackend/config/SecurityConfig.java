@@ -16,8 +16,6 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.web.servlet.config.annotation.CorsRegistry;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.util.List;
 
@@ -34,8 +32,9 @@ public class SecurityConfig {
             "/api/auth/register/**",
             "/api/auth/forgot-password",
             "/api/auth/reset-password",
-            "/api/public/**",
-            "/uploads/**" 
+            "/api/auth/oauth/google",
+            "/api/auth/oauth/facebook",
+            "/api/public/**"
     };
 
     @Bean
