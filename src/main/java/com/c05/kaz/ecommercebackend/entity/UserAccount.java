@@ -30,11 +30,9 @@ public class UserAccount {
     @Column(nullable = false, unique = true, length = 100)
     private String username;
     @Column
-    private String fullName;
-    @Column(length = 255)
     private String password; // mã hoá (BCrypt)
 
-    @Column(nullable = false, unique = true, length = 150)
+    @Column(nullable = false, unique = true, length = 255)
     private String email;
 
     @Column
