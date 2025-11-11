@@ -60,7 +60,7 @@ public class UserAccountService {
                 .username(req.getUsername())
                 .password(passwordEncoder.encode("123456@Abc")) // default
                 .email(req.getEmail())
-                .fullName(req.getFullName())
+//                .fullName(req.getFullName())
                 .userType(UserType.HR)       // hoặc ADMIN/STAFF tuỳ quy ước
                 .status(AccountStatus.ACTIVE)
                 .provider(SocialProvider.LOCAL)

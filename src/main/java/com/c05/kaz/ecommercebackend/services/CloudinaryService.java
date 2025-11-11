@@ -15,7 +15,44 @@ public class CloudinaryService {
 
     private final Cloudinary cloudinary;
 
+    /**
+     * ✅ Upload file chung (tự động xác định loại file)
+     */
+    public String uploadFile(MultipartFile file, String folderName) throws IOException {
+        if (file == null || file.isEmpty()) {
+            throw new RuntimeException("File ảnh trống");
+        }
+
+        Map uploadResult = cloudinary.uploader().upload(
+                file.getBytes(),
+                ObjectUtils.asMap(
+                        "folder", folderName,
+                        "resource_type", "auto" // cho phép ảnh/video/pdf
+                )
+        );
+
+        return (String) uploadResult.get("secure_url");
+    }
+
+
+    /**
+     * ✅ Upload avatar cho khách hàng
+     */
+    public String uploadCustomerAvatar(MultipartFile file, Long userId) {
+        return uploadWithCustomPath(file, "ecommerce/customers", "customer_" + userId);
+    }
+
+    /**
+     * ✅ Upload avatar cho shop / nhà cung cấp
+     */
     public String uploadShopAvatar(MultipartFile file, Long supplierId) {
+        return uploadWithCustomPath(file, "ecommerce/shops", "shop_" + supplierId);
+    }
+
+    /**
+     * ✅ Hàm helper: upload với đường dẫn tùy chỉnh
+     */
+    private String uploadWithCustomPath(MultipartFile file, String folder, String prefix) {
         if (file == null || file.isEmpty()) {
             throw new RuntimeException("File ảnh trống");
         }
@@ -24,40 +61,24 @@ public class CloudinaryService {
             Map uploadResult = cloudinary.uploader().upload(
                     file.getBytes(),
                     ObjectUtils.asMap(
-                            "folder", "ecommerce/shops", // 📁 thư mục Cloudinary
-                            "public_id", "shop_" + supplierId + "_" + System.currentTimeMillis(),
+                            "folder", folder,
+                            "public_id", prefix + "_" + System.currentTimeMillis(),
                             "overwrite", true,
                             "resource_type", "image"
                     )
             );
 
-            // Cloudinary trả về nhiều field, lấy secure_url là đường dẫn https
             return (String) uploadResult.get("secure_url");
-
         } catch (IOException e) {
-            throw new RuntimeException("Upload avatar lên Cloudinary thất bại", e);
+            throw new RuntimeException("Upload file lên Cloudinary thất bại", e);
         }
     }
 
-    // Avatar khách hàng
-    public String uploadCustomerAvatar(MultipartFile file, Long userId) {
-        if (file == null || file.isEmpty()) {
-            throw new RuntimeException("File ảnh trống");
-        }
-
-        try {
-            Map uploadResult = cloudinary.uploader().upload(
-                    file.getBytes(),
-                    ObjectUtils.asMap(
-                            "folder", "ecommerce/customers",
-                            "public_id", "customer_" + userId + "_" + System.currentTimeMillis(),
-                            "overwrite", true,
-                            "resource_type", "image"
-                    )
-            );
-            return (String) uploadResult.get("secure_url");
-        } catch (IOException e) {
-            throw new RuntimeException("Upload avatar khách hàng lên Cloudinary thất bại", e);
-        }
+    /**
+     * ✅ Xóa file khỏi Cloudinary bằng publicId
+     * (publicId là phần sau "upload/" nhưng không có .jpg, .png,...)
+     */
+    public void deleteFile(String publicId) throws IOException {
+        cloudinary.uploader().destroy(publicId, ObjectUtils.emptyMap());
     }
 }
