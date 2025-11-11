@@ -83,7 +83,6 @@ public class DataInitializer implements CommandLineRunner {
         roleRepository.saveAll(roles);
     }
 
-    // ================== USERS & PROFILES ==================
 
     private void seedUsersAndProfiles() {
         // ===== ADMIN =====
@@ -100,7 +99,7 @@ public class DataInitializer implements CommandLineRunner {
                         .build()
         );
 
-        // ===== HR =====
+
         UserAccount hr = userAccountRepository.save(
                 UserAccount.builder()
                         .username("hr01")
@@ -126,7 +125,7 @@ public class DataInitializer implements CommandLineRunner {
                         .build()
         );
 
-        // ===== SUPPLIER 1: Fashionista Boutique =====
+
         UserAccount fashionShopUser = userAccountRepository.save(
                 UserAccount.builder()
                         .username("fashion01")
@@ -151,7 +150,7 @@ public class DataInitializer implements CommandLineRunner {
                         .build()
         );
 
-        // ===== SUPPLIER 2: StreetStyle Store =====
+
         UserAccount streetShopUser = userAccountRepository.save(
                 UserAccount.builder()
                         .username("street01")
@@ -176,7 +175,6 @@ public class DataInitializer implements CommandLineRunner {
                         .build()
         );
 
-        // ===== CUSTOMER SAMPLE =====
         UserAccount customerUser = userAccountRepository.save(
                 UserAccount.builder()
                         .username("customer01")
@@ -203,7 +201,6 @@ public class DataInitializer implements CommandLineRunner {
         );
     }
 
-    // ================== FASHION CATEGORIES & PRODUCTS ==================
 
     private void seedCategoriesAndProducts() {
         // Categories thời trang
