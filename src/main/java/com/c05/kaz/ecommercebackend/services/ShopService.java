@@ -1,6 +1,5 @@
 package com.c05.kaz.ecommercebackend.services;
 
-import com.c05.kaz.ecommercebackend.dto.supplier.SupplierAvatarUpdateRequest;
 import com.c05.kaz.ecommercebackend.dto.supplier.SupplierProfileResponse;
 import com.c05.kaz.ecommercebackend.dto.supplier.SupplierProfileUpdateRequest;
 import com.c05.kaz.ecommercebackend.entity.SupplierShop;
@@ -10,6 +9,7 @@ import com.c05.kaz.ecommercebackend.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Optional;
@@ -21,8 +21,10 @@ public class ShopService {
 
     private final SupplierRepository supplierRepository;
     private final SecurityUtils securityUtils;
+    private final CloudinaryService cloudinaryService; // ✅ thêm dòng này
 
-    // PUBLIC: dùng cho /api/public/shops
+
+    // PUBLIC
     public List<SupplierShop> getAll() {
         return supplierRepository.findAll();
     }
@@ -35,19 +37,12 @@ public class ShopService {
 
     @Transactional(readOnly = true)
     public SupplierProfileResponse getMyProfile() {
-        Long userId = securityUtils.getCurrentUserId();
-
-        SupplierShop supplier = supplierRepository.findByUser_Id(userId)
-                .orElseThrow(() -> new NotFoundException("Nhà cung cấp không tồn tại"));
-
+        SupplierShop supplier = getCurrentSupplier();
         return mapToResponse(supplier);
     }
 
     public SupplierProfileResponse updateMyProfile(SupplierProfileUpdateRequest request) {
-        Long userId = securityUtils.getCurrentUserId();
-
-        SupplierShop supplier = supplierRepository.findByUser_Id(userId)
-                .orElseThrow(() -> new NotFoundException("Nhà cung cấp không tồn tại"));
+        SupplierShop supplier = getCurrentSupplier();
 
         supplier.setShopName(request.getShopName());
         supplier.setDescription(request.getDescription());
@@ -58,16 +53,26 @@ public class ShopService {
         return mapToResponse(saved);
     }
 
-    public SupplierProfileResponse updateMyAvatar(SupplierAvatarUpdateRequest request) {
-        Long userId = securityUtils.getCurrentUserId();
+    public SupplierProfileResponse updateMyAvatar(MultipartFile avatarFile) {
+        SupplierShop supplier = getCurrentSupplier();
 
-        SupplierShop supplier = supplierRepository.findByUser_Id(userId)
-                .orElseThrow(() -> new NotFoundException("Nhà cung cấp không tồn tại"));
+        // Upload lên Cloudinary
+        String avatarUrl = cloudinaryService.uploadShopAvatar(avatarFile, supplier.getId());
 
-        supplier.setAvatarUrl(request.getAvatarUrl());
-
+        // Cập nhật DB
+        supplier.setAvatarUrl(avatarUrl);
         SupplierShop saved = supplierRepository.save(supplier);
+
         return mapToResponse(saved);
+    }
+
+
+    // Helpers
+
+    private SupplierShop getCurrentSupplier() {
+        Long userId = securityUtils.getCurrentUserId();
+        return supplierRepository.findByUser_Id(userId)
+                .orElseThrow(() -> new NotFoundException("Nhà cung cấp không tồn tại"));
     }
 
     private SupplierProfileResponse mapToResponse(SupplierShop s) {

@@ -1,6 +1,5 @@
 package com.c05.kaz.ecommercebackend.controller;
 
-import com.c05.kaz.ecommercebackend.dto.supplier.SupplierAvatarUpdateRequest;
 import com.c05.kaz.ecommercebackend.dto.supplier.SupplierProfileResponse;
 import com.c05.kaz.ecommercebackend.dto.supplier.SupplierProfileUpdateRequest;
 import com.c05.kaz.ecommercebackend.services.ShopService;
@@ -8,6 +7,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/suppliers/me")
@@ -31,8 +31,8 @@ public class SupplierProfileController {
 
     @PatchMapping("/avatar")
     public ResponseEntity<SupplierProfileResponse> updateAvatar(
-            @RequestBody @Valid SupplierAvatarUpdateRequest request
+            @RequestParam("avatar") MultipartFile avatar
     ) {
-        return ResponseEntity.ok(shopService.updateMyAvatar(request));
+        return ResponseEntity.ok(shopService.updateMyAvatar(avatar));
     }
 }
