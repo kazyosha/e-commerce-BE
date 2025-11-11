@@ -34,12 +34,6 @@ public class CloudinaryService {
         return (String) uploadResult.get("secure_url");
     }
 
-    /**
-     * ✅ Upload avatar cho HR / nhân viên
-     */
-    public String uploadEmployeeAvatar(MultipartFile file, Long userId) {
-        return uploadWithCustomPath(file, "ecommerce/employees", "employee_" + userId);
-    }
 
     /**
      * ✅ Upload avatar cho khách hàng
