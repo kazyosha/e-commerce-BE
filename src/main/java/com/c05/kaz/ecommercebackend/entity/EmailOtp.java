@@ -18,7 +18,6 @@ public class EmailOtp {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Gắn với user đang upgrade
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private UserAccount user;

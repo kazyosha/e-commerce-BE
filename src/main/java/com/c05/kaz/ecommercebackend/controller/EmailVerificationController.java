@@ -18,7 +18,7 @@ public class EmailVerificationController {
     private final EmailVerificationCustomerService emailVerificationService;
 
     // Gửi OTP xác thực email (yêu cầu đã đăng nhập)
-    @PostMapping("/email/send-otp")
+        @PostMapping("/email/send-otp")
     public ResponseEntity<?> sendEmailOtp(Principal principal) {
         if (principal == null) {
             return ResponseEntity.status(401).body("Bạn cần đăng nhập");
