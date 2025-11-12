@@ -28,7 +28,6 @@ public class SecurityConfig {
 
     private static final String[] PUBLIC_ENDPOINTS = {
             "/api/auth/login",
-            "/api/auth/register",
             "/api/auth/register/**",
             "/api/auth/forgot-password",
             "/api/auth/reset-password",
@@ -62,15 +61,16 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
 
-        // Dev: cho phép tất cả origin; nếu muốn chặt hơn thì set cụ thể localhost:8081
-        config.setAllowedOrigins(List.of("*"));
+        config.setAllowedOrigins(List.of(
+                "http://localhost:5173",
+                "http://localhost:8081",
+                "http://127.0.0.1:5173"
+        ));
 
-        // ✅ Quan trọng: thêm PATCH
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
 
         config.setAllowedHeaders(List.of("*"));
 
-        // Không dùng cookie cross-site nên để false là OK
         config.setAllowCredentials(false);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

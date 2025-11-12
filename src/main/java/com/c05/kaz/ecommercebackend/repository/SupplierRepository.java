@@ -18,5 +18,7 @@ public interface SupplierRepository extends JpaRepository<SupplierShop, Long> {
             AccountStatus status
     );
 
+    boolean existsByUser_Id(Long userId);
+
     List<SupplierShop> findByStatus(SupplierStatus status);
 }

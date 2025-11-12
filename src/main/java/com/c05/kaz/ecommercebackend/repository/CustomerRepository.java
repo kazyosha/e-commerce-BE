@@ -9,4 +9,5 @@ public interface CustomerRepository extends JpaRepository<CustomerProfile, Long>
 
     Optional<CustomerProfile> findByUser_Id(Long userId);
 
+    boolean existsByUser_Id(Long id);
 }
