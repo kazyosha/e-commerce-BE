@@ -58,11 +58,11 @@ public class AuthController {
                     new UsernamePasswordAuthenticationToken(request.getIdentifier(), request.getPassword())
             );
         } catch (BadCredentialsException e) {
-            return ResponseEntity.status(401).body("Sai tài khoản hoặc mật khẩu");
+            return ResponseEntity.status(401).body(Map.of("message","Sai tài khoản hoặc mật khẩu"));
         } catch (LockedException e) {
-            return ResponseEntity.status(403).body("Tài khoản đã bị khóa");
+            return ResponseEntity.status(403).body(Map.of("message","Tài khoản đã bị khóa"));
         } catch (DisabledException e) {
-            return ResponseEntity.status(403).body("Tài khoản đang bị vô hiệu hóa");
+            return ResponseEntity.status(403).body(Map.of("message","Tài khoản đang bị vô hiệu hóa"));
         }
 
         UserAccount user = userAccountRepository
@@ -70,7 +70,7 @@ public class AuthController {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy tài khoản"));
 
         if (user.getStatus() != AccountStatus.ACTIVE) {
-            return ResponseEntity.status(403).body("Tài khoản không ở trạng thái hoạt động");
+            return ResponseEntity.status(403).body(Map.of("message","Tài khoản đang bị vô hiệu hóa"));
         }
 
         var springUser = User.withUsername(user.getUsername())
