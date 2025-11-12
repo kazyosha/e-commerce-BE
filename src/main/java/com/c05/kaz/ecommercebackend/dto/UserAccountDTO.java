@@ -37,7 +37,7 @@ public class UserAccountDTO {
 
     private String address;
 
-    @DecimalMin(value = "0.0", inclusive = false, message = "Lương phải > 0")
+    @DecimalMin(value = "0", inclusive = false, message = "Lương phải > 0")
     @DecimalMax(value = "100000000.0", inclusive = false, message = "Lương phải < 100,000,000")
-    private Double salary;
+    private Long salary;
 }
