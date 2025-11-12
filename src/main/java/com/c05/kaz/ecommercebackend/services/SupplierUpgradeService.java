@@ -94,10 +94,7 @@ public class SupplierUpgradeService {
         SupplierShop shop = supplierRepo.findByUser_Id(user.getId())
                 .orElseThrow(() -> new RuntimeException("Chưa có thông tin shop"));
 
-        // user vẫn dùng được tài khoản
-        user.setUserType(UserType.SUPPLIER);
-        user.getRoles().add(roleRepo.findByCode("SUPPLIER"));
-        userRepo.save(user);
+        user.setEmailVerified(true);
 
         shop.setStatus(SupplierStatus.PENDING);
         shop.setUpdatedAt(LocalDateTime.now());
