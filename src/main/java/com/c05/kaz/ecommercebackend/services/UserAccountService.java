@@ -1,10 +1,12 @@
 package com.c05.kaz.ecommercebackend.services;
 
 import com.c05.kaz.ecommercebackend.dto.UserAccountDTO;
+import com.c05.kaz.ecommercebackend.entity.EmployeeProfile;
 import com.c05.kaz.ecommercebackend.entity.UserAccount;
 import com.c05.kaz.ecommercebackend.enums.AccountStatus;
 import com.c05.kaz.ecommercebackend.enums.SocialProvider;
 import com.c05.kaz.ecommercebackend.enums.UserType;
+import com.c05.kaz.ecommercebackend.repository.EmployeeProfileRepository;
 import com.c05.kaz.ecommercebackend.repository.UserAccountRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -20,6 +22,7 @@ import java.time.LocalDateTime;
 public class UserAccountService {
 
     private final UserAccountRepository userAccountRepository;
+    private final EmployeeProfileRepository employeeProfileRepository;
     private final PasswordEncoder passwordEncoder;
 
 
@@ -70,6 +73,20 @@ public class UserAccountService {
                 .build();
 
         userAccountRepository.save(user);
+
+        EmployeeProfile profile = EmployeeProfile.builder()
+                .user(user)
+                .fullName(req.getFullName() != null ? req.getFullName() : "Nhân viên HR mới")
+                .phone(req.getPhone())
+                .address(req.getAddress())
+                .salary(req.getSalary() != null ? req.getSalary() : 0L)
+                .age(req.getAge())
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        employeeProfileRepository.save(profile);
+
+        System.out.println("✅ Đã tạo HR mới: " + req.getUsername() + " (có profile đi kèm)");
     }
 
 
