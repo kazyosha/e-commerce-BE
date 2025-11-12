@@ -7,10 +7,12 @@ import com.c05.kaz.ecommercebackend.repository.EmailOtpRepository;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
+import java.io.UnsupportedEncodingException;
 import java.time.LocalDateTime;
 import java.util.Random;
 
@@ -21,8 +23,23 @@ public class OtpService {
     private final JavaMailSender mailSender;
     private final EmailOtpRepository emailOtpRepository;
 
+    @Value("${app.mail.from:}")       // From tuỳ biến của app (ưu tiên dùng cái này)
+    private String appFrom;
+
+    @Value("${spring.mail.username:}")// Fall back: username của SMTP (ví dụ Gmail)
+    private String smtpUser;
+
+    @Value("${app.mail.fromName:}")   // Tên hiển thị (tuỳ chọn)
+    private String appFromName;
+
     private String randomCode() {
         return String.format("%06d", new Random().nextInt(999999));
+    }
+
+    private String resolveFrom() {
+        if (appFrom != null && !appFrom.isBlank()) return appFrom;
+        if (smtpUser != null && !smtpUser.isBlank()) return smtpUser;
+        throw new IllegalStateException("Thiếu cấu hình địa chỉ FROM cho email (app.mail.from hoặc spring.mail.username).");
     }
 
     private void saveAndSendHtml(
@@ -45,11 +62,18 @@ public class OtpService {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            // ✅ PHẢI có From
+            String from = resolveFrom();
+            if (appFromName != null && !appFromName.isBlank()) {
+                helper.setFrom(from, appFromName);   // có tên hiển thị
+            } else {
+                helper.setFrom(from);                // không có tên hiển thị
+            }
             helper.setTo(user.getEmail());
             helper.setSubject(subject);
             helper.setText(htmlBody, true);
             mailSender.send(message);
-        } catch (MessagingException e) {
+        } catch (MessagingException | UnsupportedEncodingException e) {
             throw new RuntimeException("Gửi email OTP thất bại", e);
         }
     }
