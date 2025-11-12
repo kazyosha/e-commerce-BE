@@ -9,6 +9,7 @@ import com.c05.kaz.ecommercebackend.repository.UserAccountRepository;
 import com.c05.kaz.ecommercebackend.security.JwtService;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -163,12 +164,17 @@ public class AuthController {
     // ================== HÀM DÙNG CHUNG ==================
     private ResponseEntity<?> registerUser(RegisterRequest request, UserType userType, String roleCode) {
         if (userAccountRepository.existsByEmail(request.getEmail()))
-            return ResponseEntity.badRequest().body("Email đã tồn tại");
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("message", "Email đã tồn tại", "code", "EMAIL_EXISTS"));
+
         if (userAccountRepository.existsByUsername(request.getUsername()))
-            return ResponseEntity.badRequest().body("Username đã tồn tại");
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("message", "Username đã tồn tại", "code", "USERNAME_EXISTS"));
 
         var role = roleRepository.findByCode(roleCode);
-        if (role == null) return ResponseEntity.badRequest().body("Role " + roleCode + " chưa tồn tại");
+        if (role == null)
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "Role " + roleCode + " chưa tồn tại", "code", "ROLE_NOT_FOUND"));
 
         UserAccount user = UserAccount.builder()
                 .username(request.getUsername())
