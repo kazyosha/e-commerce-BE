@@ -28,6 +28,8 @@ public class UserAccountDTO {
     private String email;
 
 
+    @Min(value = 18, message = "Tuổi phải >= 18")
+    @Max(value = 60, message = "Tuổi phải <= 60")
     private int age;
 
     @Pattern(regexp = "^(0|\\+84)[0-9]{9,10}$", message = "Số điện thoại không hợp lệ")

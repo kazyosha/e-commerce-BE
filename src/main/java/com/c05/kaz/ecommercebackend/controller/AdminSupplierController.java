@@ -8,6 +8,7 @@ import com.c05.kaz.ecommercebackend.enums.SupplierStatus;
 import com.c05.kaz.ecommercebackend.enums.UserType;
 import com.c05.kaz.ecommercebackend.repository.RoleRepository;
 import com.c05.kaz.ecommercebackend.repository.SupplierRepository;
+import com.c05.kaz.ecommercebackend.services.SupplierDocumentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,56 +23,54 @@ import java.util.List;
 public class AdminSupplierController {
 
     private final SupplierRepository supplierRepository;
+    private final SupplierDocumentService documentService;
     private final RoleRepository roleRepository;
 
     @GetMapping("/pending")
-    public ResponseEntity<List<SupplierShop>> getPendingSuppliers() {
-        List<SupplierShop> list = supplierRepository.findByStatus(SupplierStatus.PENDING);
-        return ResponseEntity.ok(list);
+    public ResponseEntity<?> getPending() {
+        return ResponseEntity.ok(supplierRepository.findByStatus(SupplierStatus.PENDING));
     }
 
+    /** APPROVE */
     @PutMapping("/{id}/approve")
     @Transactional
     public ResponseEntity<?> approve(@PathVariable Long id) {
-        SupplierShop shop = supplierRepository.findById(id).orElseThrow();
-        UserAccount user = shop.getUser();
+        SupplierShop shop = supplierRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Shop không tồn tại"));
 
-        // Cập nhật thông tin
-        shop.setStatus(SupplierStatus.APPROVED);
+        UserAccount user = shop.getUser();
         user.setUserType(UserType.SUPPLIER);
         user.setStatus(AccountStatus.ACTIVE);
 
-        // Thêm quyền SUPPLIER
         Role supplierRole = roleRepository.findByCode("SUPPLIER");
-        if (supplierRole == null) {
-            throw new RuntimeException("Không tìm thấy role SUPPLIER");
-        }
+        user.getRoles().add(supplierRole);
 
-        if (!user.getRoles().contains(supplierRole)) {
-            user.getRoles().add(supplierRole);
-        }
+        shop.setStatus(SupplierStatus.APPROVED);
 
         supplierRepository.save(shop);
-        return ResponseEntity.ok("✅ Đã duyệt nhà cung cấp thành công");
+        return ResponseEntity.ok("Duyệt nhà cung cấp thành công");
     }
 
+    /** REJECT → XÓA DOCUMENT */
     @PutMapping("/{id}/reject")
-    public ResponseEntity<?> reject(
-            @PathVariable Long id,
-            @RequestParam(required = false) String reason
-    ) {
-        SupplierShop shop = supplierRepository.findById(id).orElseThrow();
+    @Transactional
+    public ResponseEntity<?> reject(@PathVariable Long id) {
+        SupplierShop shop = supplierRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Shop không tồn tại"));
 
-        // Cập nhật trạng thái supplier bị từ chối
+        // Xóa tài liệu trên cloud + DB
+        documentService.deleteDocumentsBySupplier(id);
+
+        // Reset shop về trạng thái cũ
         shop.setStatus(SupplierStatus.REJECTED);
 
-        // Trả lại quyền customer, vẫn hoạt động bình thường
-        shop.getUser().setUserType(UserType.CUSTOMER);
-        shop.getUser().setStatus(AccountStatus.ACTIVE);
+        UserAccount user = shop.getUser();
+        user.setUserType(UserType.CUSTOMER);
+        user.setStatus(AccountStatus.ACTIVE);
 
+        supplierRepository.delete(shop);
         supplierRepository.save(shop);
 
-        // Có thể ghi log lý do từ chối nếu cần
-        return ResponseEntity.ok("❌ Đã từ chối hồ sơ nhà cung cấp");
+        return ResponseEntity.ok("Từ chối — toàn bộ tài liệu đã được xoá!");
     }
 }

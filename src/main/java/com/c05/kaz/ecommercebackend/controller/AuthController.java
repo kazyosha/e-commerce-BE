@@ -28,7 +28,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
-@CrossOrigin(origins = { "http://localhost:8080", "http://localhost:8081" })
+@CrossOrigin(origins = "*")
 public class AuthController {
 
     private final UserAccountRepository userAccountRepository;
