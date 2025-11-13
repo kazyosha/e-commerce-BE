@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.UnsupportedEncodingException;
 import java.time.LocalDateTime;
@@ -42,13 +43,16 @@ public class OtpService {
         throw new IllegalStateException("Thiếu cấu hình địa chỉ FROM cho email (app.mail.from hoặc spring.mail.username).");
     }
 
-    private void saveAndSendHtml(
+    @Transactional
+    void saveAndSendHtml(
             UserAccount user,
             String code,
             EmailOtpPurpose purpose,
             String subject,
             String htmlBody
     ) {
+        emailOtpRepository.invalidateAllUnusedByUserAndPurpose(user, purpose);
+
         EmailOtp otp = EmailOtp.builder()
                 .user(user)
                 .code(code)
@@ -121,5 +125,24 @@ public class OtpService {
         otp.setUsed(true);
         emailOtpRepository.save(otp);
         return true;
+    }
+
+    @Transactional
+    public void sendForgotPasswordOtp(UserAccount user) {
+        String code = randomCode();
+        saveAndSendHtml(
+                user, code, EmailOtpPurpose.FORGOT_PASSWORD,
+                "Mã OTP đặt lại mật khẩu",
+                """
+                <p>Xin chào %s,</p>
+                <p>Mã OTP đặt lại mật khẩu của bạn là: <b>%s</b></p>
+                <p>Mã có hiệu lực trong 5 phút.</p>
+                """.formatted(user.getUsername(), code)
+        );
+    }
+
+    @Transactional
+    public boolean verifyForgotPasswordOtp(UserAccount user, String code) {
+        return verify(user, code, EmailOtpPurpose.FORGOT_PASSWORD);
     }
 }
