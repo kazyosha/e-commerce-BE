@@ -77,10 +77,10 @@ public class UserAccountService {
         EmployeeProfile profile = EmployeeProfile.builder()
                 .user(user)
                 .fullName(req.getFullName() != null ? req.getFullName() : "Nhân viên HR mới")
-                .phone(req.getPhone())
-                .address(req.getAddress())
                 .salary(req.getSalary() != null ? req.getSalary() : 0L)
-                .age(req.getAge())
+                .phone("")                  // bỏ phone → cho chuỗi rỗng để tránh null
+                .address("")                // nếu không dùng address
+                .age(null)                  // nếu age không dùng luôn
                 .createdAt(LocalDateTime.now())
                 .build();
 
