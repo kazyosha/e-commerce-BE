@@ -21,15 +21,15 @@ import java.util.List;
 public class SupplierUpgradeController {
 
     private final SupplierUpgradeService upgradeService;
-    private final SupplierDocumentService supplierDocumentService;
+    private final SupplierDocumentService documentService;
 
-    // B1: lưu thông tin shop
+    /** B1: Lưu thông tin shop */
     @PostMapping("/info")
-    public ResponseEntity<?> saveInfo(@RequestBody ShopInfoRequest req,
-                                      Principal principal) {
-        if (principal == null) {
-            return ResponseEntity.status(401).body("Unauthorized");
-        }
+    public ResponseEntity<?> saveInfo(
+            @RequestBody ShopInfoRequest req,
+            Principal principal
+    ) {
+        if (principal == null) return ResponseEntity.status(401).body("Unauthorized");
 
         SupplierShop shop = upgradeService.saveShopInfo(
                 principal.getName(),
@@ -40,47 +40,39 @@ public class SupplierUpgradeController {
         return ResponseEntity.ok(shop.getId());
     }
 
-    // B2: upload documents -> Cloudinary
-    @PostMapping(
-            value = "/documents",
-            consumes = MediaType.MULTIPART_FORM_DATA_VALUE
-    )
+    /** B2: Upload chứng từ lên Cloudinary */
+    @PostMapping(value = "/documents", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> uploadDocuments(
-            @RequestParam("supplierId") Long supplierId,
+            @RequestParam Long supplierId,
             @RequestParam("files") List<MultipartFile> files,
             Principal principal
     ) {
-        if (principal == null) {
-            return ResponseEntity.status(401).body("Unauthorized");
-        }
+        if (principal == null) return ResponseEntity.status(401).body("Unauthorized");
+        if (files.isEmpty()) return ResponseEntity.badRequest().body("Vui lòng upload ít nhất 1 file");
 
-        if (files == null || files.isEmpty()) {
-            return ResponseEntity.badRequest().body("Vui lòng chọn ít nhất 1 file");
-        }
-
-        List<SupplierDocument> docs = supplierDocumentService.uploadDocuments(supplierId, files);
+        List<SupplierDocument> docs = documentService.uploadDocuments(supplierId, files);
         return ResponseEntity.ok(docs);
     }
 
-    // B3: gửi OTP
+    /** B3: Gửi OTP */
     @PostMapping("/send-otp")
     public ResponseEntity<?> sendOtp(Principal principal) {
-        if (principal == null) {
-            return ResponseEntity.status(401).body("Unauthorized");
-        }
+        if (principal == null) return ResponseEntity.status(401).body("Unauthorized");
+
         upgradeService.sendOtp(principal.getName());
-        return ResponseEntity.ok("Đã gửi mã OTP đến email của bạn");
+        return ResponseEntity.ok("Đã gửi mã OTP");
     }
 
-    // B4: verify OTP
+    /** B4: Xác minh OTP */
     @PostMapping("/verify-otp")
-    public ResponseEntity<?> verifyOtp(@RequestBody VerifyOtpRequest req,
-                                       Principal principal) {
-        if (principal == null) {
-            return ResponseEntity.status(401).body("Unauthorized");
-        }
+    public ResponseEntity<?> verifyOtp(
+            @RequestBody VerifyOtpRequest req,
+            Principal principal
+    ) {
+        if (principal == null) return ResponseEntity.status(401).body("Unauthorized");
+
         upgradeService.verifyOtpAndUpgrade(principal.getName(), req.getOtp());
-        return ResponseEntity.ok("Đăng ký nhà cung cấp thành công, vui lòng chờ admin duyệt");
+        return ResponseEntity.ok("Đăng ký thành công — chờ admin duyệt");
     }
 
     // DTOs

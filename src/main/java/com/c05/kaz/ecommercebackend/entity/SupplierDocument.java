@@ -30,6 +30,8 @@ public class SupplierDocument {
     @Column(nullable = false, length = 50)
     private DocumentType type;
 
+    private String publicId;
+
     @Column(name = "file_url", nullable = false, length = 500)
     private String fileUrl;
 

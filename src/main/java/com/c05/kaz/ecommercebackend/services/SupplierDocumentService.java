@@ -13,9 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -25,6 +23,7 @@ public class SupplierDocumentService {
     private final SupplierRepository supplierShopRepository;
     private final SupplierDocumentRepository supplierDocumentRepository;
 
+    /** Upload document lên Cloudinary */
     public List<SupplierDocument> uploadDocuments(Long supplierId, List<MultipartFile> files) {
         SupplierShop shop = supplierShopRepository.findById(supplierId)
                 .orElseThrow(() -> new RuntimeException("Supplier not found"));
@@ -38,21 +37,25 @@ public class SupplierDocumentService {
                 Map uploadResult = cloudinary.uploader().upload(
                         file.getBytes(),
                         ObjectUtils.asMap(
-                                "folder", "supplier-docs/" + supplierId
+                                "folder", "supplier-docs/" + supplierId,
+                                "resource_type", "auto"
                         )
                 );
 
                 String url = (String) uploadResult.get("secure_url");
+                String publicId = (String) uploadResult.get("public_id");
 
                 SupplierDocument doc = SupplierDocument.builder()
                         .supplier(shop)
                         .fileUrl(url)
-                        .type(DocumentType.OTHER)   // hoặc detect type nếu muốn
+                        .publicId(publicId)
+                        .type(DocumentType.OTHER)
                         .uploadedAt(LocalDateTime.now())
                         .build();
 
                 supplierDocumentRepository.save(doc);
                 result.add(doc);
+
             } catch (IOException e) {
                 throw new RuntimeException("Upload to Cloudinary failed", e);
             }
@@ -63,5 +66,20 @@ public class SupplierDocumentService {
         }
 
         return result;
+    }
+
+    /** Xoá toàn bộ file Cloudinary + record trong DB */
+    public void deleteDocumentsBySupplier(Long supplierId) {
+        List<SupplierDocument> docs = supplierDocumentRepository.findBySupplier_Id(supplierId);
+
+        for (SupplierDocument doc : docs) {
+
+            try {
+                cloudinary.uploader().destroy(doc.getPublicId(), ObjectUtils.emptyMap());
+            } catch (Exception ignored) {}
+
+        }
+
+        supplierDocumentRepository.deleteAll(docs);
     }
 }
