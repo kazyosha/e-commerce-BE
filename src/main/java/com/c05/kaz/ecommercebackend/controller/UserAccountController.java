@@ -2,6 +2,7 @@ package com.c05.kaz.ecommercebackend.controller;
 
 import com.c05.kaz.ecommercebackend.dto.UserAccountDTO;
 import com.c05.kaz.ecommercebackend.entity.UserAccount;
+import com.c05.kaz.ecommercebackend.repository.UserAccountRepository;
 import com.c05.kaz.ecommercebackend.services.UserAccountService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -9,12 +10,17 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/admin/users")
 @RequiredArgsConstructor
 public class UserAccountController {
 
     private final UserAccountService userAccountService;
+    private final UserAccountRepository userAccountRepository;
 
 
     @GetMapping
@@ -61,5 +67,19 @@ public class UserAccountController {
     public ResponseEntity<?> activeUser(@PathVariable Long id) {
         userAccountService.activeUser(id);
         return ResponseEntity.ok("Đã kích hoạt tài khoản!");
+    }
+
+    @GetMapping("/user-stats")
+    public ResponseEntity<?> getUserStats() {
+        List<Object[]> stats = userAccountRepository.countUsersByType();
+
+        Map<String, Long> result = new HashMap<>();
+        for (Object[] row : stats) {
+            String type = row[0] != null ? row[0].toString() : "UNKNOWN";
+            Long count = (Long) row[1];
+            result.put(type, count);
+        }
+
+        return ResponseEntity.ok(result);
     }
 }
