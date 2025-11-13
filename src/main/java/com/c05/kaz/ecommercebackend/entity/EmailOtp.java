@@ -27,6 +27,7 @@ public class EmailOtp {
     private String code;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "purpose", length = 50, nullable = false)
     private EmailOtpPurpose purpose;
 
     private LocalDateTime createdAt;

@@ -7,6 +7,7 @@ import com.c05.kaz.ecommercebackend.enums.UserType;
 import com.c05.kaz.ecommercebackend.repository.RoleRepository;
 import com.c05.kaz.ecommercebackend.repository.UserAccountRepository;
 import com.c05.kaz.ecommercebackend.security.JwtService;
+import com.c05.kaz.ecommercebackend.services.OtpService;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -35,10 +36,7 @@ public class AuthController {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
-    private final JavaMailSender mailSender; // ✅ Inject JavaMailSender
-
-    // Lưu OTP tạm thời vào memory, không vào DB
-    private final Map<String, OtpEntry> otpStore = new ConcurrentHashMap<>();
+    private final OtpService otpService; // <-- dùng service mới
 
     // ================== ĐĂNG KÝ ==================
     @PostMapping("/register/customer")
@@ -89,76 +87,28 @@ public class AuthController {
     public ResponseEntity<?> forgotPassword(@RequestBody ForgotPasswordRequest request) {
         var userOpt = userAccountRepository.findByEmail(request.getEmail());
         if (userOpt.isEmpty()) {
-            return ResponseEntity.badRequest().body("Email không tồn tại trong hệ thống");
+            return ResponseEntity.badRequest().body(Map.of("message", "Email không tồn tại trong hệ thống"));
         }
+        var user = userOpt.get();
 
-        try {
-            // Tạo + lưu + gửi OTP (dùng hàm dùng chung)
-            generateAndSendOtp(
-                    request.getEmail(),
-                    "Mã OTP đặt lại mật khẩu",
-                    "Mã OTP của bạn là: "
-            );
-
-            return ResponseEntity.ok("Đã gửi mã OTP đến email " + request.getEmail());
-        } catch (Exception e) {
-            e.printStackTrace();
-            // Dev mode: vẫn cho dùng OTP in trong log
-            return ResponseEntity.ok("Đã tạo OTP (DEV MODE), kiểm tra server log để lấy mã.");
-        }
-    }
-
-    // Tạo + lưu + gửi OTP dùng chung
-    private void generateAndSendOtp(String email, String subject, String messagePrefix) {
-        String otp = generateOtpCode();
-
-        // Lưu OTP với hạn 5 phút
-        otpStore.put(email, new OtpEntry(otp, LocalDateTime.now().plusMinutes(5)));
-
-        // Log để dev test
-        System.out.println("OTP for " + email + " = " + otp);
-
-        // Gửi email
-        sendOtpEmail(email, subject, messagePrefix, otp);
-
-    }
-
-    // Chỉ sinh OTP 6 số
-    private String generateOtpCode() {
-        return String.valueOf((int) (Math.random() * 900000) + 100000);
-    }
-
-    // Gửi email OTP (có thể tái dùng cho nhiều loại OTP khác nhau)
-    private void sendOtpEmail(String email, String subject, String messagePrefix, String otp) {
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setTo(email);
-        message.setSubject(subject);
-        message.setText(messagePrefix + otp + "\nHết hạn sau 5 phút.");
-        message.setFrom("phamhaianhpc10@gmail.com"); // hoặc @Value từ cấu hình
-        mailSender.send(message);
+        // Tạo + lưu + gửi OTP qua OtpService
+        otpService.sendForgotPasswordOtp(user);
+        return ResponseEntity.ok(Map.of("message", "Đã gửi mã OTP đến email " + request.getEmail()));
     }
 
     @PostMapping("/reset-password")
     public ResponseEntity<?> resetPassword(@RequestBody ResetPasswordRequest request) {
-        OtpEntry entry = otpStore.get(request.getEmail());
-        if (entry == null) return ResponseEntity.badRequest().body("Không có mã OTP hợp lệ");
-        if (entry.expiry.isBefore(LocalDateTime.now())) {
-            otpStore.remove(request.getEmail());
-            return ResponseEntity.badRequest().body("Mã OTP đã hết hạn");
-        }
-        if (!entry.code.equals(request.getOtp())) {
-            return ResponseEntity.badRequest().body("Mã OTP không chính xác");
-        }
-
-        UserAccount user = userAccountRepository.findByEmail(request.getEmail())
+        var user = userAccountRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+
+        boolean ok = otpService.verifyForgotPasswordOtp(user, request.getOtp());
+        if (!ok) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Mã OTP không hợp lệ hoặc đã hết hạn"));
+        }
 
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userAccountRepository.save(user);
-
-        otpStore.remove(request.getEmail());
-
-        return ResponseEntity.ok("Đặt lại mật khẩu thành công");
+        return ResponseEntity.ok(Map.of("message", "Đặt lại mật khẩu thành công"));
     }
 
     // ================== HÀM DÙNG CHUNG ==================
@@ -264,5 +214,4 @@ public class AuthController {
         private String newPassword;
     }
 
-    private record OtpEntry(String code, LocalDateTime expiry) {}
 }
