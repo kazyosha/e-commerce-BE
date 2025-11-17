@@ -1,6 +1,7 @@
 package com.c05.kaz.ecommercebackend.entity;
 
 import com.c05.kaz.ecommercebackend.enums.SupplierStatus;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -45,12 +46,15 @@ public class SupplierShop {
     private List<SupplierDocument> documents;
 
     @OneToMany(mappedBy = "supplier")
+    @JsonIgnore
     private List<Product> products;
 
     @OneToMany(mappedBy = "supplier")
+    @JsonIgnore
     private List<Promotion> promotions;
 
     @OneToMany(mappedBy = "supplier")
+    @JsonIgnore
     private List<Order> orders;
 
     private LocalDateTime createdAt;
@@ -74,4 +78,3 @@ public class SupplierShop {
         this.updatedAt = LocalDateTime.now();
     }
 }
-

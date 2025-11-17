@@ -25,6 +25,9 @@ public class ProductImage {
     @Column(nullable = false, length = 500)
     private String imageUrl;
 
-    private boolean mainImage; // ảnh chính
-}
+    @Column(name = "public_id", length = 1000)
+    private String publicId;
 
+    @Builder.Default
+    private boolean mainImage = false;
+}
