@@ -23,13 +23,6 @@ public class ProductController {
         return ResponseEntity.ok(productService.getAllProducts(page, size));
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<Product> getDetail(@PathVariable Long id) {
-        return productService.getById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
-    }
-
     // tìm kiếm theo keyword + categoryId (phục vụ trang chủ)
     @GetMapping("/search")
     public ResponseEntity<Page<Product>> search(

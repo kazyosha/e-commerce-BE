@@ -46,16 +46,13 @@ public class ProductService {
                     .id(p.getId())
                     .name(p.getName())
                     .price(p.getPrice())
-                    .thumbnail(thumbnail)
+                    .thumbnailUrl(thumbnail)
                     .categoryName(p.getCategory().getName())
                     .supplierName(p.getSupplier().getShopName())
                     .soldQuantity(p.getSoldQuantity())
                     .active(p.isActive())
                     .build();
         });
-    }
-    public Optional<Product> getById(Long id) {
-        return productRepository.findById(id);
     }
 
     public Page<Product> search(String keyword, Long categoryId, int page, int size) {

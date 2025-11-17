@@ -80,4 +80,16 @@ public class OrderController {
         OrderDetailResponse detail = orderService.getOrderDetail(customerId, orderId);
         return ResponseEntity.ok(detail);
     }
+
+//    @PostMapping("/checkout")
+//    public ResponseEntity<?> checkout(@RequestBody CheckoutRequest request) {
+//        try {
+//            List<OrderResponse> orders = orderService.checkoutFromCart(request);
+//            return ResponseEntity.ok(orders);
+//        } catch (RuntimeException e) {
+//            return ResponseEntity
+//                    .badRequest()
+//                    .body(java.util.Map.of("message", e.getMessage()));
+//        }
+//    }
 }
