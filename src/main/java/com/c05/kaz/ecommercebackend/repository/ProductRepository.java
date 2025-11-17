@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface ProductRepository extends JpaRepository<Product, Long> {
+    Page<Product> findByActiveTrue(Pageable pageable);
 
     Page<Product> findAll(Pageable pageable);
 

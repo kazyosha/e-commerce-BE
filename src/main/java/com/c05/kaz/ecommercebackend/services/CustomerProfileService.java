@@ -93,6 +93,16 @@ public class CustomerProfileService {
         return toResponse(saved, user);
     }
 
+    @Transactional(readOnly = true)
+    public CustomerProfile getByUser(UserAccount user) {
+        if (user == null || user.getId() == null) {
+            throw new IllegalArgumentException("User không hợp lệ");
+        }
+
+        return customerProfileRepository.findByUser_Id(user.getId())
+                .orElseGet(() -> initProfileForUser(user));
+    }
+
     // Chỉ dùng ở đây, không dùng builder, không tự set id lạ
     private CustomerProfile initProfileForUser(UserAccount user) {
         CustomerProfile profile = new CustomerProfile();

@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-@Component
+//@Component
 @RequiredArgsConstructor
 public class DataInitializer implements CommandLineRunner {
 

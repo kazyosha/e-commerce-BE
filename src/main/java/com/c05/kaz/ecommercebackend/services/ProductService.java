@@ -1,5 +1,7 @@
 package com.c05.kaz.ecommercebackend.services;
 
+import com.c05.kaz.ecommercebackend.dto.product.ProductDetailResponse;
+import com.c05.kaz.ecommercebackend.dto.product.ProductResponse;
 import com.c05.kaz.ecommercebackend.entity.Category;
 import com.c05.kaz.ecommercebackend.entity.Product;
 import com.c05.kaz.ecommercebackend.entity.SupplierShop;
@@ -26,6 +28,32 @@ public class ProductService {
         return productRepository.findAll(pageable);
     }
 
+    public Page<ProductResponse> getHomeProducts(int page, int size) {
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+
+        Page<Product> products = productRepository.findByActiveTrue(pageable);
+
+        return products.map(p -> {
+
+            // lấy ảnh đầu tiên làm thumbnail
+            String thumbnail = null;
+            if (p.getImages() != null && !p.getImages().isEmpty()) {
+                thumbnail = p.getImages().get(0).getImageUrl();
+            }
+
+            return ProductResponse.builder()
+                    .id(p.getId())
+                    .name(p.getName())
+                    .price(p.getPrice())
+                    .thumbnail(thumbnail)
+                    .categoryName(p.getCategory().getName())
+                    .supplierName(p.getSupplier().getShopName())
+                    .soldQuantity(p.getSoldQuantity())
+                    .active(p.isActive())
+                    .build();
+        });
+    }
     public Optional<Product> getById(Long id) {
         return productRepository.findById(id);
     }
@@ -59,5 +87,31 @@ public class ProductService {
         if (shop == null) return List.of();
         Pageable pageable = PageRequest.of(0, limit, Sort.by("soldQuantity").descending());
         return productRepository.findBySupplier(shop, pageable).getContent();
+    }
+
+    public ProductDetailResponse getProductDetail(Long id) {
+        Product p = productRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Product not found"));
+
+        return ProductDetailResponse.builder()
+                .id(p.getId())
+                .name(p.getName())
+                .description(p.getDescription())
+                .price(p.getPrice())
+                .quantity(p.getQuantity())
+                .active(p.isActive())
+                .soldQuantity(p.getSoldQuantity())
+                .categoryId(p.getCategory().getId())
+                .categoryName(p.getCategory().getName())
+                .supplierId(p.getSupplier().getId())
+                .supplierName(p.getSupplier().getShopName())
+                .images(
+                        p.getImages() == null
+                                ? java.util.List.of()
+                                : p.getImages().stream()
+                                .map(img -> img.getImageUrl())
+                                .toList()
+                )
+                .build();
     }
 }

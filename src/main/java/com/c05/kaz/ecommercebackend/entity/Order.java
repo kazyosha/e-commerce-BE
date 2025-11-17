@@ -1,11 +1,10 @@
 package com.c05.kaz.ecommercebackend.entity;
 
 import com.c05.kaz.ecommercebackend.enums.OrderStatus;
+import com.c05.kaz.ecommercebackend.enums.PaymentMethod;
+import com.c05.kaz.ecommercebackend.enums.PaymentStatus;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -23,7 +22,6 @@ public class Order {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // mỗi đơn thuộc 1 shop (multi-vendor)
     @ManyToOne(optional = false)
     @JoinColumn(name = "supplier_id")
     private SupplierShop supplier;
@@ -36,7 +34,25 @@ public class Order {
     @Column(nullable = false, length = 20)
     private OrderStatus status; // PENDING, REJECTED, CANCELED, COMPLETED
 
-    // thông tin nhận hàng (copy từ profile, cho phép chỉnh)
+    // ====== Payment info ======
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private PaymentMethod paymentMethod;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private PaymentStatus paymentStatus;
+
+    @Column(nullable = false)
+    private boolean paid;
+
+    @Column(length = 100)
+    private String paymentTransactionId; // mã giao dịch phía cổng thanh toán
+
+    @Column(length = 100)
+    private String bankCode; // nếu gateway trả về bankCode cụ thể
+
+    // ====== Receiver info ======
     @Column(nullable = false, length = 150)
     private String receiverName;
 
@@ -49,15 +65,17 @@ public class Order {
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items = new ArrayList<>();
 
-    private Long originalTotal;   // tổng trước giảm
-    private Long discountAmount;  // tổng giảm
-    private Long finalTotal;      // tổng cuối
+    private Long originalTotal;
+    private Long discountAmount;
+    private Long finalTotal;
 
     @ManyToOne
     @JoinColumn(name = "promotion_id")
-    private Promotion promotion;  // mã đã áp, nếu có
+    private Promotion promotion;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    private Double totalPrice;
 }
 

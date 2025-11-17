@@ -63,5 +63,9 @@ public class UserAccount {
     // audit
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    public UserAccount getCustomer() {
+        return this;
+    }
 }
 

@@ -29,7 +29,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             "/api/auth/register/supplier",
             "/api/auth/forgot-password",
             "/api/auth/reset-password",
-            "/api/public/"
+            "/api/public/",
+            "/api/products/"
     };
 
     @Override
