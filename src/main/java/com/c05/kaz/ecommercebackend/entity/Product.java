@@ -1,6 +1,7 @@
 package com.c05.kaz.ecommercebackend.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Min;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -36,22 +37,40 @@ public class Product {
     @Column(length = 2000)
     private String description;
 
+    @Min(1)
     @Column(nullable = false)
     private Long price; // VND
 
+    @Min(1)
     @Column(nullable = false)
     private Integer quantity; // >0
 
     @Column(nullable = false)
-    private boolean active; // ngừng bán -> false
+    private boolean active = true;
 
-    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Column(length = 500)
+    private String thumbnailUrl;
+
+    @OneToMany(
+            mappedBy = "product",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true
+    )
     private List<ProductImage> images = new ArrayList<>();
 
-    // phục vụ top 5 bán chạy, thống kê
     private Long soldQuantity = 0L;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-}
 
+    @PrePersist
+    public void prePersist() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
+}
