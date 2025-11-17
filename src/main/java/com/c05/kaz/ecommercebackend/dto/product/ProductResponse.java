@@ -1,22 +1,33 @@
 package com.c05.kaz.ecommercebackend.dto.product;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
+
+import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
-@Builder
-@AllArgsConstructor
 @NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class ProductResponse {
 
     private Long id;
-    private String name;
-    private Long price;
-    private String thumbnail; // ảnh chính (image đầu tiên)
+
+    private Long supplierId;
+    private Long categoryId;
     private String categoryName;
-    private String supplierName;
-    private Long soldQuantity;
+
+    private String name;
+    private String description;
+    private Long price;
+    private Integer quantity;
     private boolean active;
+
+    private String thumbnailUrl;
+    private List<String> images; // list url ảnh
+
+    private Long soldQuantity;
+
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 }
