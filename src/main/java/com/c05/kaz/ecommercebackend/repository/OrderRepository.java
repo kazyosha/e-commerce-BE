@@ -7,9 +7,9 @@ import com.c05.kaz.ecommercebackend.enums.OrderStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface OrderRepository extends JpaRepository<Order, Long> {
-    List<Order> findByCustomer(CustomerProfile customer);
-    List<Order> findBySupplier(SupplierShop supplier);
-    List<Order> findBySupplierAndStatus(SupplierShop supplier, OrderStatus status);
+
+    Optional<Object> findByInvoiceNo(String invoiceNo);
 }
