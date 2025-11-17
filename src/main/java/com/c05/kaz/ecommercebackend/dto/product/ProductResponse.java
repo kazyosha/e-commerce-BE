@@ -30,4 +30,6 @@ public class ProductResponse {
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    private String supplierName;
 }

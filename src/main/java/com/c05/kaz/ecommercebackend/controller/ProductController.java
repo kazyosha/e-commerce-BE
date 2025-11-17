@@ -16,18 +16,11 @@ public class ProductController {
     private final ProductService productService;
 
     @GetMapping
-    public ResponseEntity<Page<Product>> getAll(
+    public ResponseEntity<?> getAll(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "12") int size
     ) {
         return ResponseEntity.ok(productService.getAllProducts(page, size));
-    }
-
-    @GetMapping("/{id}")
-    public ResponseEntity<Product> getDetail(@PathVariable Long id) {
-        return productService.getById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
     }
 
     // tìm kiếm theo keyword + categoryId (phục vụ trang chủ)

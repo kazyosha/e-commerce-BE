@@ -33,7 +33,8 @@ public class SecurityConfig {
             "/api/auth/reset-password",
             "/api/auth/oauth/google",
             "/api/auth/oauth/facebook",
-            "/api/public/**"
+            "/api/public/**",
+            "/api/products/**",
     };
 
     @Bean
@@ -47,7 +48,7 @@ public class SecurityConfig {
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
 
                         .requestMatchers("/api/suppliers/me/**").hasRole("SUPPLIER")
-                        .requestMatchers("/api/customers/me/**").hasRole("CUSTOMER")
+                        .requestMatchers("/api/customers/**","/api/cart/**","/api/orders/**").hasRole("CUSTOMER")
                         .requestMatchers("/api/supplier/**").authenticated()
                         .requestMatchers("/api/authentic/**").authenticated()
                         .anyRequest().authenticated()

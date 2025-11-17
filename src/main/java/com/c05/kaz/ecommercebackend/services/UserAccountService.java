@@ -11,6 +11,8 @@ import com.c05.kaz.ecommercebackend.repository.UserAccountRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -123,5 +125,31 @@ public class UserAccountService {
         user.setUpdatedAt(LocalDateTime.now());
 
         userAccountRepository.save(user);
+    }
+
+    public UserAccount getCurrentCustomer() {
+        // 1. Lấy Authentication từ SecurityContext
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+
+        if (auth == null || !auth.isAuthenticated()
+                || "anonymousUser".equals(auth.getPrincipal())) {
+            throw new RuntimeException("Người dùng chưa đăng nhập.");
+        }
+
+        // 2. Lấy username (hoặc email) từ auth
+        String username = auth.getName(); // chính là username khi bạn build UserDetails
+
+        // 3. Tìm UserAccount trong DB
+        UserAccount user = userAccountRepository
+                .findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy tài khoản: " + username));
+
+        // 4. Lấy Customer từ UserAccount
+        UserAccount customer = user.getCustomer();
+        if (customer == null) {
+            throw new RuntimeException("Tài khoản hiện tại không phải khách hàng.");
+        }
+
+        return customer;
     }
 }
