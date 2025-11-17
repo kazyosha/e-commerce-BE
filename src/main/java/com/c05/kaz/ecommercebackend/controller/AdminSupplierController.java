@@ -61,14 +61,15 @@ public class AdminSupplierController {
         // Xóa tài liệu trên cloud + DB
         documentService.deleteDocumentsBySupplier(id);
 
-        // Reset shop về trạng thái cũ
+        // Cập nhật trạng thái shop
         shop.setStatus(SupplierStatus.REJECTED);
 
+        // Cập nhật user về CUSTOMER
         UserAccount user = shop.getUser();
         user.setUserType(UserType.CUSTOMER);
         user.setStatus(AccountStatus.ACTIVE);
 
-        supplierRepository.delete(shop);
+        // 👉 CHỈ SAVE, KHÔNG ĐƯỢC delete + save cùng lúc
         supplierRepository.save(shop);
 
         return ResponseEntity.ok("Từ chối — toàn bộ tài liệu đã được xoá!");

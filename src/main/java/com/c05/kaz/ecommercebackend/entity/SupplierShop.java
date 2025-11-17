@@ -43,7 +43,6 @@ public class SupplierShop {
     private String mapLocation;
 
     @OneToMany(mappedBy = "supplier", cascade = CascadeType.ALL, orphanRemoval = true)
-    @JsonIgnore
     private List<SupplierDocument> documents;
 
     @OneToMany(mappedBy = "supplier")
