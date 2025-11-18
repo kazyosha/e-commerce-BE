@@ -65,8 +65,8 @@ public class UserAccount {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    public UserAccount getCustomer() {
-        return this;
-    }
+    @ManyToOne
+    @JoinColumn(name = "customer_id")
+    private UserAccount customer;
 }
 
