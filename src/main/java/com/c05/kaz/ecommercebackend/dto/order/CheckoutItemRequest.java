@@ -4,6 +4,7 @@ import lombok.Data;
 
 @Data
 public class CheckoutItemRequest {
+    private Long productId;
     private Long cartItemId;
     private Integer quantity; // số lượng muốn mua (có thể = quantity trong cart)
 }

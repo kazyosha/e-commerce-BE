@@ -14,7 +14,6 @@ public class OrderDetailResponse {
     private LocalDateTime createdAt;
     private String status;
     private String paymentMethod;
-    private String paymentStatus;
     private boolean paid;
 
     private Long originalTotal;
@@ -36,7 +35,6 @@ public class OrderDetailResponse {
         dto.setCreatedAt(order.getCreatedAt());
         dto.setStatus(order.getStatus().name());
         dto.setPaymentMethod(order.getPaymentMethod().name());
-        dto.setPaymentStatus(order.getPaymentStatus().name());
         dto.setPaid(order.isPaid());
 
         dto.setOriginalTotal(order.getOriginalTotal());

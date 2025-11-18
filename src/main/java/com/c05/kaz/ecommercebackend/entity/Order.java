@@ -2,7 +2,6 @@ package com.c05.kaz.ecommercebackend.entity;
 
 import com.c05.kaz.ecommercebackend.enums.OrderStatus;
 import com.c05.kaz.ecommercebackend.enums.PaymentMethod;
-import com.c05.kaz.ecommercebackend.enums.PaymentStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -38,10 +37,6 @@ public class Order {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private PaymentMethod paymentMethod;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private PaymentStatus paymentStatus;
 
     @Column(nullable = false)
     private boolean paid;

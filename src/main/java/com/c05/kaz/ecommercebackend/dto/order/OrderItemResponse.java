@@ -1,49 +1,45 @@
 package com.c05.kaz.ecommercebackend.dto.order;
 
 import com.c05.kaz.ecommercebackend.entity.OrderItem;
+import lombok.Builder;
 import lombok.Data;
 
 @Data
+@Builder
 public class OrderItemResponse {
 
     private Long id;
     private Long productId;
     private String productName;
-    private String productImage;
-    private Integer quantity;
+    private String thumbnail;
     private Long unitPrice;
-    private Long totalPrice;
+    private Integer quantity;
+    private Long lineTotal;
 
-    public static OrderItemResponse fromEntity(OrderItem item) {
-        OrderItemResponse dto = new OrderItemResponse();
-        dto.setId(item.getId());
-
-        if (item.getProduct() != null) {
-            dto.setProductId(item.getProduct().getId());
-            dto.setProductName(item.getProduct().getName());
-
-            // 🔥 Lấy ảnh thumbnail đầu tiên
-            if (item.getProduct().getImages() != null && !item.getProduct().getImages().isEmpty()) {
-                dto.setProductImage(item.getProduct().getImages().get(0).getImageUrl());
-            } else {
-                dto.setProductImage(null);
-            }
-
-        } else {
-            dto.setProductName("Sản phẩm không tồn tại");
-            dto.setProductImage(null);
+    public static OrderItemResponse fromEntity(OrderItem oi) {
+        Long thumb = null;
+        String thumbnail = null;
+        if (oi.getProduct() != null
+                && oi.getProduct().getImages() != null
+                && !oi.getProduct().getImages().isEmpty()) {
+            thumbnail = oi.getProduct().getImages().get(0).getImageUrl();
         }
 
-        dto.setQuantity(item.getQuantity());
-        dto.setUnitPrice(item.getUnitPrice());
+        // Nếu entity OrderItem đã có field lineTotal
+        Long lineTotal = oi.getLineTotal();
+        // fallback: tự tính nếu null
+        if (lineTotal == null && oi.getUnitPrice() != null && oi.getQuantity() != null) {
+            lineTotal = oi.getUnitPrice() * oi.getQuantity(); // unitPrice là Long, quantity là Integer
+        }
 
-        long total = (item.getUnitPrice() != null && item.getQuantity() != null)
-                ? item.getUnitPrice() * item.getQuantity()
-                : 0;
-
-        dto.setTotalPrice(total);
-
-        return dto;
+        return OrderItemResponse.builder()
+                .id(oi.getId())
+                .productId(oi.getProduct().getId())
+                .productName(oi.getProduct().getName())
+                .thumbnail(thumbnail)
+                .unitPrice(oi.getUnitPrice())
+                .quantity(oi.getQuantity())
+                .lineTotal(lineTotal)
+                .build();
     }
-
 }

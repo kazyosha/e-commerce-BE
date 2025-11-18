@@ -5,13 +5,17 @@ import com.c05.kaz.ecommercebackend.dto.order.OrderDetailResponse;
 import com.c05.kaz.ecommercebackend.dto.order.OrderResponse;
 import com.c05.kaz.ecommercebackend.dto.order.OrderSummaryResponse;
 import com.c05.kaz.ecommercebackend.services.OrderService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.security.Principal;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/orders")
@@ -21,14 +25,20 @@ public class OrderController {
     private final OrderService orderService;
 
     @PostMapping("/checkout")
-    public ResponseEntity<?> checkout(@RequestBody CheckoutRequest request) {
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<?> checkout(@RequestBody @Valid CheckoutRequest request) {
         try {
-            List<OrderSummaryResponse> orders = orderService.checkoutCOD(request);
+            List<OrderSummaryResponse> orders = orderService.checkout(request);
             return ResponseEntity.ok(orders);
+        } catch (ResponseStatusException ex) {
+            // nếu service ném ResponseStatusException
+            return ResponseEntity
+                    .status(ex.getStatusCode())
+                    .body(Map.of("message", ex.getReason()));
         } catch (RuntimeException e) {
             return ResponseEntity
                     .badRequest()
-                    .body(java.util.Map.of("message", e.getMessage()));
+                    .body(Map.of("message", e.getMessage()));
         }
     }
 
@@ -81,15 +91,34 @@ public class OrderController {
         return ResponseEntity.ok(detail);
     }
 
-//    @PostMapping("/checkout")
-//    public ResponseEntity<?> checkout(@RequestBody CheckoutRequest request) {
-//        try {
-//            List<OrderResponse> orders = orderService.checkoutFromCart(request);
-//            return ResponseEntity.ok(orders);
-//        } catch (RuntimeException e) {
-//            return ResponseEntity
-//                    .badRequest()
-//                    .body(java.util.Map.of("message", e.getMessage()));
-//        }
-//    }
+    @PostMapping("/{orderId}/cancel")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<?> cancelOrder(
+            @PathVariable Long orderId,
+            Principal principal
+    ) {
+        String username = principal.getName();
+        Long customerId = orderService.getCustomerIdByUsername(username);
+
+        try {
+            OrderResponse res = orderService.cancelOrder(customerId, orderId);
+            return ResponseEntity.ok(res);
+        } catch (ResponseStatusException ex) {
+            return ResponseEntity
+                    .status(ex.getStatusCode())
+                    .body(Map.of("message", ex.getReason()));
+        }
+    }
+
+    @GetMapping("/cancellable")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<List<OrderResponse>> getCancellableOrders(
+            Authentication authentication
+    ) {
+        String username = authentication.getName();
+        Long customerId = orderService.getCustomerIdByUsername(username);
+
+        List<OrderResponse> result = orderService.getCancellableOrdersOfCustomer(customerId);
+        return ResponseEntity.ok(result);
+    }
 }

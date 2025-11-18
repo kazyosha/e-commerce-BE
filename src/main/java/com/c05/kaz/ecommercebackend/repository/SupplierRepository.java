@@ -1,6 +1,7 @@
 package com.c05.kaz.ecommercebackend.repository;
 
 import com.c05.kaz.ecommercebackend.entity.SupplierShop;
+import com.c05.kaz.ecommercebackend.entity.UserAccount;
 import com.c05.kaz.ecommercebackend.enums.AccountStatus;
 import com.c05.kaz.ecommercebackend.enums.SupplierStatus;
 import com.c05.kaz.ecommercebackend.enums.UserType;
@@ -21,4 +22,6 @@ public interface SupplierRepository extends JpaRepository<SupplierShop, Long> {
     boolean existsByUser_Id(Long userId);
 
     List<SupplierShop> findByStatus(SupplierStatus status);
+
+    Optional<Object> findByUser(UserAccount user);
 }

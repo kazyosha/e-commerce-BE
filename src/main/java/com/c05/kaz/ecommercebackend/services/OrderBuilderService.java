@@ -5,7 +5,6 @@ import com.c05.kaz.ecommercebackend.dto.order.CheckoutRequest;
 import com.c05.kaz.ecommercebackend.entity.*;
 import com.c05.kaz.ecommercebackend.enums.OrderStatus;
 import com.c05.kaz.ecommercebackend.enums.PaymentMethod;
-import com.c05.kaz.ecommercebackend.enums.PaymentStatus;
 import com.c05.kaz.ecommercebackend.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -83,8 +82,6 @@ public class OrderBuilderService {
             order.setPaymentMethod(
                     req.getPaymentMethod() != null ? req.getPaymentMethod() : PaymentMethod.COD
             );
-            order.setPaymentStatus(PaymentStatus.PENDING);
-
             order.setReceiverName(
                     req.getReceiverName() != null && !req.getReceiverName().isBlank()
                             ? req.getReceiverName()
