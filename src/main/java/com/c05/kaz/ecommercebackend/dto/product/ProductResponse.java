@@ -17,7 +17,7 @@ public class ProductResponse {
 
     // ⭐ HỖ TRỢ NHIỀU DANH MỤC
     private List<Long> categoryIds;
-    private List<String> categoryNames;
+    private List<String> categoryName;
 
     private String name;
     private String description;

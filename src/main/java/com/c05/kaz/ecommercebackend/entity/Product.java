@@ -84,4 +84,14 @@ public class Product {
     public void preUpdate() {
         updatedAt = LocalDateTime.now();
     }
+
+    public String getEffectiveThumbnail() {
+        if (thumbnailUrl != null && !thumbnailUrl.isBlank()) {
+            return thumbnailUrl;
+        }
+        if (images != null && !images.isEmpty()) {
+            return images.get(0).getImageUrl();
+        }
+        return null;
+    }
 }

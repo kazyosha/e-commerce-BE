@@ -4,6 +4,7 @@ import com.c05.kaz.ecommercebackend.dto.product.ProductDetailResponse;
 import com.c05.kaz.ecommercebackend.dto.product.ProductResponse;
 import com.c05.kaz.ecommercebackend.entity.Category;
 import com.c05.kaz.ecommercebackend.entity.Product;
+import com.c05.kaz.ecommercebackend.entity.ProductImage;
 import com.c05.kaz.ecommercebackend.entity.SupplierShop;
 import com.c05.kaz.ecommercebackend.repository.CategoryRepository;
 import com.c05.kaz.ecommercebackend.repository.ProductRepository;
@@ -44,13 +45,37 @@ public class ProductService {
 
             return ProductResponse.builder()
                     .id(p.getId())
-                    .name(p.getName())
-                    .price(p.getPrice())
-                    .thumbnailUrl(thumbnail)
-                    .categoryName(p.getCategory().getName())
+                    .supplierId(p.getSupplier().getId())
                     .supplierName(p.getSupplier().getShopName())
-                    .soldQuantity(p.getSoldQuantity())
+
+                    .categoryIds(
+                            p.getCategories().stream()
+                                    .map(Category::getId)
+                                    .toList()
+                    )
+                    .categoryName(
+                            p.getCategories().stream()
+                                    .map(Category::getName)
+                                    .toList()
+                    )
+
+                    .name(p.getName())
+                    .description(p.getDescription())
+                    .price(p.getPrice())
+                    .importPrice(p.getImportPrice())
+                    .quantity(p.getQuantity())
                     .active(p.isActive())
+
+                    .thumbnailUrl(p.getEffectiveThumbnail())
+                    .images(
+                            p.getImages().stream()
+                                    .map(ProductImage::getImageUrl)
+                                    .toList()
+                    )
+                    .soldQuantity(p.getSoldQuantity())
+                    .createdAt(p.getCreatedAt())
+                    .updatedAt(p.getUpdatedAt())
+
                     .build();
         });
     }
@@ -120,8 +145,8 @@ public class ProductService {
                 .quantity(p.getQuantity())
                 .active(p.isActive())
                 .soldQuantity(p.getSoldQuantity())
-                .categoryId(p.getCategory().getId())
-                .categoryName(p.getCategory().getName())
+                .categoryId(p.getId())
+                .categoryName(p.getName())
                 .supplierId(p.getSupplier().getId())
                 .supplierName(p.getSupplier().getShopName())
                 .images(
