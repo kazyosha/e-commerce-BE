@@ -208,7 +208,7 @@ public class DataInitializer implements CommandLineRunner {
 
         Product p1 = productRepository.save(Product.builder()
                 .supplier(fashionShop)
-                .category(dresses)
+//                .categories(dresses)
                 .name("Đầm voan hoa tay phồng")
                 .price(550_000L)
                 .quantity(20)
