@@ -30,33 +30,55 @@ public class ProductService {
         return productRepository.findById(id);
     }
 
+    /**
+     * Search sản phẩm cho phía customer:
+     *  - keyword: tìm theo tên
+     *  - categoryId: lọc theo 1 danh mục (product có chứa category đó trong danh sách categories)
+     */
     public Page<Product> search(String keyword, Long categoryId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        String kw = keyword == null ? "" : keyword.trim();
+        String kw = (keyword == null) ? "" : keyword.trim();
 
-        if ((kw.isEmpty()) && categoryId == null) {
+        // Không keyword, không category -> trả về all
+        if (kw.isEmpty() && categoryId == null) {
             return getAllProducts(page, size);
         }
 
+        // Có keyword, không category -> search theo tên
         if (!kw.isEmpty() && categoryId == null) {
-            return productRepository
-                    .findByNameContainingIgnoreCase(kw, pageable);
+            return productRepository.findByNameContainingIgnoreCase(kw, pageable);
         }
 
+        // Có category, không keyword -> lọc theo category
         if (kw.isEmpty()) {
             Category category = categoryRepository.findById(categoryId).orElse(null);
-            if (category == null) return Page.empty(pageable);
-            return productRepository.findByCategory(category, pageable);
+            if (category == null) {
+                return Page.empty(pageable);
+            }
+            // many-to-many
+            return productRepository.findDistinctByCategories(category, pageable);
         }
 
+        // Có cả keyword & category
         Category category = categoryRepository.findById(categoryId).orElse(null);
-        if (category == null) return Page.empty(pageable);
-        return productRepository.findByNameContainingIgnoreCaseAndCategory(kw, category, pageable);
+        if (category == null) {
+            return Page.empty(pageable);
+        }
+        // many-to-many
+        return productRepository.findDistinctByNameContainingIgnoreCaseAndCategories(
+                kw,
+                category,
+                pageable
+        );
     }
 
+    /**
+     * Lấy top sản phẩm bán chạy theo shop
+     */
     public List<Product> getTopSoldByShop(Long shopId, int limit) {
         SupplierShop shop = supplierRepository.findById(shopId).orElse(null);
         if (shop == null) return List.of();
+
         Pageable pageable = PageRequest.of(0, limit, Sort.by("soldQuantity").descending());
         return productRepository.findBySupplier(shop, pageable).getContent();
     }

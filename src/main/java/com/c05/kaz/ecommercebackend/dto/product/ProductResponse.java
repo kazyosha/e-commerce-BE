@@ -14,17 +14,20 @@ public class ProductResponse {
     private Long id;
 
     private Long supplierId;
-    private Long categoryId;
-    private String categoryName;
+
+    // ⭐ HỖ TRỢ NHIỀU DANH MỤC
+    private List<Long> categoryIds;
+    private List<String> categoryNames;
 
     private String name;
     private String description;
     private Long price;
+    private Long importPrice;  // ⭐ giá nhập
     private Integer quantity;
     private boolean active;
 
     private String thumbnailUrl;
-    private List<String> images; // list url ảnh
+    private List<String> images;
 
     private Long soldQuantity;
 

@@ -33,7 +33,14 @@ public class SupplierProductController {
      *
      * parts:
      *  - data: JSON (ProductCreateRequest)
-     *  - images: list file ảnh
+     *      {
+     *          "categoryIds": [1, 3, 5],
+     *          "name": "...",
+     *          "description": "...",
+     *          "price": 100000,
+     *          "quantity": 10
+     *      }
+     *  - images: list file ảnh (MultipartFile[])
      */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('SUPPLIER')")
@@ -46,7 +53,7 @@ public class SupplierProductController {
     }
 
     /**
-     * Nhà cung cấp xem danh sách sản phẩm của mình (phân trang + search + lọc danh mục)
+     * Nhà cung cấp xem danh sách sản phẩm của mình (phân trang + search + lọc danh mục + khoảng giá)
      *
      * GET /api/suppliers/products
      *
@@ -54,8 +61,9 @@ public class SupplierProductController {
      *  - page (default 0)
      *  - size (default 10)
      *  - search: tìm theo tên sản phẩm (optional)
-     *  - categoryId: lọc theo danh mục (optional)
-     *  - minPrice, maxPrice: để trống tạm, BE chưa dùng (optional)
+     *  - categoryId: lọc theo 1 danh mục (optional)
+     *      -> BE sẽ tìm các product có chứa category này trong danh sách categories
+     *  - minPrice, maxPrice: lọc theo khoảng giá (optional)
      */
     @GetMapping
     @PreAuthorize("hasRole('SUPPLIER')")
@@ -63,12 +71,12 @@ public class SupplierProductController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String search,
-            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) List<Long> categoryIds,  // ⭐
             @RequestParam(required = false) Long minPrice,
             @RequestParam(required = false) Long maxPrice
     ) {
         Page<ProductResponse> result = supplierProductService.getMyProducts(
-                page, size, search, categoryId, minPrice, maxPrice
+                page, size, search, categoryIds, minPrice, maxPrice   // ⭐
         );
         return ResponseEntity.ok(result);
     }
@@ -93,6 +101,13 @@ public class SupplierProductController {
      *
      * parts:
      *  - data: JSON (ProductCreateRequest)
+     *      {
+     *          "categoryIds": [1, 3],
+     *          "name": "...",
+     *          "description": "...",
+     *          "price": 100000,
+     *          "quantity": 10
+     *      }
      *  - newImages: list ảnh mới (optional)
      *  - keepImages: JSON array các URL ảnh cũ muốn giữ lại (optional)
      */
@@ -143,6 +158,7 @@ public class SupplierProductController {
      *
      * parts:
      *  - imageIdsToDelete: JSON array các ID ảnh muốn xoá (optional)
+     *      ví dụ: "[1, 2, 5]"
      *  - newImages: list file ảnh mới (optional)
      */
     @PutMapping(value = "/{id}/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

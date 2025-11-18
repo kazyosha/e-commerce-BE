@@ -8,10 +8,7 @@ import com.c05.kaz.ecommercebackend.repository.*;
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.*;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -19,9 +16,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +28,10 @@ public class SupplierProductService {
     private final SupplierRepository supplierRepository;
     private final UserAccountRepository userAccountRepository;
     private final Cloudinary cloudinary;
+
+    // =====================================
+    //           HELPER METHODS
+    // =====================================
 
     /**
      * Lấy UserAccount hiện tại từ SecurityContext
@@ -47,6 +46,24 @@ public class SupplierProductService {
     }
 
     /**
+     * Lấy shop của supplier hiện tại, đồng thời kiểm tra userType
+     */
+    private SupplierShop getCurrentSupplierShopOrThrow() {
+        UserAccount current = getCurrentUser();
+
+        if (current.getUserType() != UserType.SUPPLIER) {
+            throw new AccessDeniedException("Chỉ nhà cung cấp mới được phép thực hiện thao tác này");
+        }
+
+        return supplierRepository.findByUser_Id(current.getId())
+                .orElseThrow(() -> new RuntimeException("Supplier chưa có shop"));
+    }
+
+    // =====================================
+    //           CREATE PRODUCT
+    // =====================================
+
+    /**
      * Nhà cung cấp thêm 1 sản phẩm để kinh doanh
      */
     public ProductResponse createProduct(ProductCreateRequest request, MultipartFile[] images) {
@@ -55,30 +72,28 @@ public class SupplierProductService {
             throw new RuntimeException("Phải upload ít nhất 1 ảnh sản phẩm");
         }
 
-        // 1. Lấy user hiện tại & kiểm tra có phải SUPPLIER không
-        UserAccount current = getCurrentUser();
+        SupplierShop supplierShop = getCurrentSupplierShopOrThrow();
 
-        if (current.getUserType() != UserType.SUPPLIER) {
-            throw new AccessDeniedException("Chỉ nhà cung cấp mới được phép tạo sản phẩm");
+        // 1. Lấy danh sách category từ request
+        if (request.getCategoryIds() == null || request.getCategoryIds().isEmpty()) {
+            throw new RuntimeException("Phải chọn ít nhất 1 danh mục");
         }
 
-        // 2. Lấy shop của supplier
-        SupplierShop supplierShop = supplierRepository.findByUser_Id(current.getId())
-                .orElseThrow(() -> new RuntimeException("Supplier chưa có shop, không thể thêm sản phẩm"));
+        List<Category> categories = categoryRepository.findAllById(request.getCategoryIds());
+        if (categories.isEmpty()) {
+            throw new RuntimeException("Không tìm thấy danh mục nào phù hợp");
+        }
 
-        // 3. Lấy category
-        Category category = categoryRepository.findById(request.getCategoryId())
-                .orElseThrow(() -> new RuntimeException("Danh mục không tồn tại"));
-
-        // 4. Tạo Product
+        // 2. Tạo Product
         LocalDateTime now = LocalDateTime.now();
 
         Product product = Product.builder()
                 .supplier(supplierShop)
-                .category(category)
+                .categories(categories)
                 .name(request.getName())
                 .description(request.getDescription())
                 .price(request.getPrice())
+                .importPrice(request.getImportPrice())  // ⭐ thêm
                 .quantity(request.getQuantity())
                 .active(true)
                 .soldQuantity(0L)
@@ -88,7 +103,7 @@ public class SupplierProductService {
 
         product = productRepository.save(product);
 
-        // 5. Upload ảnh lên Cloudinary & lưu ProductImage
+        // 3. Upload ảnh lên Cloudinary & lưu ProductImage
         List<String> imageUrls = new ArrayList<>();
         String mainImageUrl = null;
         boolean first = true;
@@ -138,8 +153,13 @@ public class SupplierProductService {
         return mapToResponse(product, imageUrls, mainImageUrl);
     }
 
+    // =====================================
+    //         MAP ENTITY -> RESPONSE
+    // =====================================
+
     private ProductResponse mapToResponse(Product product, List<String> imageUrls, String mainImageUrl) {
 
+        // Ảnh
         if (imageUrls == null || imageUrls.isEmpty()) {
             imageUrls = product.getImages()
                     .stream()
@@ -152,14 +172,28 @@ public class SupplierProductService {
             thumbnailUrl = imageUrls.get(0);
         }
 
+        // Danh mục
+        List<Category> categoryList = product.getCategories() != null
+                ? product.getCategories()
+                : Collections.emptyList();
+
+        List<Long> categoryIds = categoryList.stream()
+                .map(Category::getId)
+                .toList();
+
+        List<String> categoryNames = categoryList.stream()
+                .map(Category::getName)
+                .toList();
+
         return ProductResponse.builder()
                 .id(product.getId())
                 .supplierId(product.getSupplier().getId())
-                .categoryId(product.getCategory().getId())
-                .categoryName(product.getCategory().getName())
+                .categoryIds(categoryIds)
+                .categoryNames(categoryNames)
                 .name(product.getName())
                 .description(product.getDescription())
                 .price(product.getPrice())
+                .importPrice(product.getImportPrice())  // ⭐ thêm
                 .quantity(product.getQuantity())
                 .active(product.isActive())
                 .thumbnailUrl(thumbnailUrl)
@@ -170,36 +204,33 @@ public class SupplierProductService {
                 .build();
     }
 
+    // =====================================
+    //          LIST MY PRODUCTS
+    // =====================================
+
     /**
-     * Nhà cung cấp xem danh sách sản phẩm của chính mình (phân trang + search + lọc danh mục)
+     * Nhà cung cấp xem danh sách sản phẩm của chính mình
+     * (phân trang + search + lọc NHIỀU danh mục + khoảng giá)
      */
     public Page<ProductResponse> getMyProducts(
             int page,
             int size,
             String search,
-            Long categoryId,
+            List<Long> categoryIds,
             Long minPrice,
             Long maxPrice
     ) {
-        // 1. Lấy user hiện tại & kiểm tra SUPPLIER
-        UserAccount current = getCurrentUser();
+        SupplierShop supplierShop = getCurrentSupplierShopOrThrow();
 
-        if (current.getUserType() != UserType.SUPPLIER) {
-            throw new AccessDeniedException("Chỉ nhà cung cấp mới được phép xem sản phẩm của mình");
-        }
-
-        // 2. Lấy shop của supplier
-        SupplierShop supplierShop = supplierRepository.findByUser_Id(current.getId())
-                .orElseThrow(() -> new RuntimeException("Supplier chưa có shop"));
-
-        // 3. Chuẩn hoá tham số filter
+        // Chuẩn hoá tham số
         String keyword = (search == null || search.isBlank())
                 ? null
                 : search.trim();
 
-        Long filterCategoryId = (categoryId == null || categoryId <= 0)
-                ? null
-                : categoryId;
+        List<Long> filterCategoryIds =
+                (categoryIds == null || categoryIds.isEmpty())
+                        ? null
+                        : categoryIds;
 
         Long min = (minPrice == null || minPrice <= 0) ? null : minPrice;
         Long max = (maxPrice == null || maxPrice <= 0) ? null : maxPrice;
@@ -207,35 +238,30 @@ public class SupplierProductService {
         if (page < 0) page = 0;
         if (size <= 0) size = 10;
 
-        // sort theo mới nhất
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
 
-        // 4. Gọi 1 query chung có đủ: tên + danh mục + khoảng giá
+        // searchMyProducts: đã cập nhật query để join categories & lọc theo IN (:categoryIds)
         Page<Product> productPage = productRepository.searchMyProducts(
                 supplierShop.getId(),
                 keyword,
-                filterCategoryId,
+                filterCategoryIds,
                 min,
                 max,
                 pageable
         );
 
-        // 5. Map sang Page<ProductResponse>
         return productPage.map(p -> mapToResponse(p, null, null));
     }
+
+    // =====================================
+    //          GET MY PRODUCT DETAIL
+    // =====================================
 
     /**
      * Nhà cung cấp xem chi tiết 1 sản phẩm của chính mình
      */
     public ProductResponse getMyProductDetail(Long productId) {
-        UserAccount current = getCurrentUser();
-
-        if (current.getUserType() != UserType.SUPPLIER) {
-            throw new AccessDeniedException("Chỉ nhà cung cấp mới được phép xem sản phẩm của mình");
-        }
-
-        SupplierShop supplierShop = supplierRepository.findByUser_Id(current.getId())
-                .orElseThrow(() -> new RuntimeException("Supplier chưa có shop"));
+        SupplierShop supplierShop = getCurrentSupplierShopOrThrow();
 
         Product product = productRepository
                 .findByIdAndSupplier_Id(productId, supplierShop.getId())
@@ -244,9 +270,13 @@ public class SupplierProductService {
         return mapToResponse(product, null, null);
     }
 
+    // =====================================
+    //          UPDATE PRODUCT
+    // =====================================
+
     /**
      * Nhà cung cấp sửa thông tin sản phẩm
-     * - request: thông tin name/description/price/quantity/categoryId
+     * - request: name / description / price / quantity / categoryIds / importPrice
      * - newImages: ảnh mới upload thêm
      * - keepImages: danh sách URL ảnh cũ muốn giữ lại
      */
@@ -256,28 +286,28 @@ public class SupplierProductService {
             MultipartFile[] newImages,
             List<String> keepImages
     ) {
-        UserAccount current = getCurrentUser();
-
-        if (current.getUserType() != UserType.SUPPLIER) {
-            throw new AccessDeniedException("Chỉ nhà cung cấp mới được phép sửa sản phẩm");
-        }
-
-        SupplierShop supplierShop = supplierRepository.findByUser_Id(current.getId())
-                .orElseThrow(() -> new RuntimeException("Supplier chưa có shop"));
+        SupplierShop supplierShop = getCurrentSupplierShopOrThrow();
 
         Product product = productRepository
                 .findByIdAndSupplier_Id(productId, supplierShop.getId())
                 .orElseThrow(() -> new RuntimeException("Sản phẩm không tồn tại"));
 
-        // ------- Cập nhật thông tin cơ bản -------
-        Category category = categoryRepository.findById(request.getCategoryId())
-                .orElseThrow(() -> new RuntimeException("Danh mục không tồn tại"));
+        // ------- Cập nhật thông tin cơ bản + danh mục -------
+        if (request.getCategoryIds() == null || request.getCategoryIds().isEmpty()) {
+            throw new RuntimeException("Phải chọn ít nhất 1 danh mục");
+        }
+
+        List<Category> categories = categoryRepository.findAllById(request.getCategoryIds());
+        if (categories.isEmpty()) {
+            throw new RuntimeException("Không tìm thấy danh mục nào phù hợp");
+        }
 
         product.setName(request.getName());
         product.setDescription(request.getDescription());
         product.setPrice(request.getPrice());
+        product.setImportPrice(request.getImportPrice()); // ⭐ thêm
         product.setQuantity(request.getQuantity());
-        product.setCategory(category);
+        product.setCategories(categories);
         product.setUpdatedAt(LocalDateTime.now());
 
         // ------------ Xử lý ảnh ------------
@@ -336,38 +366,36 @@ public class SupplierProductService {
             }
         }
 
-        // Lưu product
         Product saved = productRepository.save(product);
 
         return mapToResponse(saved, finalUrls, thumbnailUrl);
     }
 
+    // =====================================
+    //          TOGGLE ACTIVE
+    // =====================================
+
     /**
      * Bật / tắt trạng thái sản phẩm (đang bán <-> ngừng bán)
      */
     public ProductResponse toggleActive(Long productId) {
-        UserAccount current = getCurrentUser();
-
-        if (current.getUserType() != UserType.SUPPLIER) {
-            throw new AccessDeniedException("Chỉ nhà cung cấp mới được phép thay đổi trạng thái sản phẩm");
-        }
-
-        SupplierShop supplierShop = supplierRepository.findByUser_Id(current.getId())
-                .orElseThrow(() -> new RuntimeException("Supplier chưa có shop"));
+        SupplierShop supplierShop = getCurrentSupplierShopOrThrow();
 
         Product product = productRepository
                 .findByIdAndSupplier_Id(productId, supplierShop.getId())
                 .orElseThrow(() -> new RuntimeException("Sản phẩm không tồn tại"));
 
-        // Đảo trạng thái
         product.setActive(!product.isActive());
         product.setUpdatedAt(LocalDateTime.now());
 
         Product saved = productRepository.save(product);
 
-        // Không cần xử lý lại ảnh → cho mapToResponse tự lấy
         return mapToResponse(saved, null, null);
     }
+
+    // =====================================
+    //          UPDATE PRODUCT IMAGES
+    // =====================================
 
     /**
      * Cập nhật ảnh sản phẩm
@@ -379,14 +407,7 @@ public class SupplierProductService {
             List<Long> imageIdsToDelete,
             MultipartFile[] newImages
     ) {
-        UserAccount current = getCurrentUser();
-
-        if (current.getUserType() != UserType.SUPPLIER) {
-            throw new AccessDeniedException("Chỉ nhà cung cấp mới được phép sửa sản phẩm");
-        }
-
-        SupplierShop supplierShop = supplierRepository.findByUser_Id(current.getId())
-                .orElseThrow(() -> new RuntimeException("Supplier chưa có shop"));
+        SupplierShop supplierShop = getCurrentSupplierShopOrThrow();
 
         Product product = productRepository
                 .findByIdAndSupplier_Id(productId, supplierShop.getId())
@@ -399,13 +420,11 @@ public class SupplierProductService {
             imageIdsToDelete = List.of();
         }
 
-        // Danh sách URL ảnh sẽ còn lại sau khi xử lý
         List<String> finalUrls = new ArrayList<>();
 
         // ==== 2. Xoá ảnh được chọn ====
         for (ProductImage img : oldImages) {
             if (imageIdsToDelete.contains(img.getId())) {
-                // Nếu bạn muốn xoá ảnh trên Cloudinary:
                 if (img.getPublicId() != null) {
                     try {
                         cloudinary.uploader().destroy(img.getPublicId(), ObjectUtils.emptyMap());
@@ -415,7 +434,6 @@ public class SupplierProductService {
                 }
                 productImageRepository.delete(img);
             } else {
-                // Ảnh được giữ lại
                 finalUrls.add(img.getImageUrl());
             }
         }
