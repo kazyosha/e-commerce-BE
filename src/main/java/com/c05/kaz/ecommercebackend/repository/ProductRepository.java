@@ -9,13 +9,14 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface ProductRepository extends JpaRepository<Product, Long> {
     Page<Product> findByActiveTrue(Pageable pageable);
 
     // ==========================
-    // EXISTING QUERIES (GIỮ NGUYÊN)
+    // EXISTING QUERIES (ĐÃ ADAPT MANY-TO-MANY)
     // ==========================
 
     // Lấy tất cả sản phẩm (phân trang) – dùng cho Admin / Customer
@@ -24,13 +25,23 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     // Tìm sản phẩm theo tên (không phân biệt hoa thường) – toàn hệ thống
     Page<Product> findByNameContainingIgnoreCase(String name, Pageable pageable);
 
-    // Lọc theo danh mục – toàn hệ thống
-    Page<Product> findByCategory(Category category, Pageable pageable);
+    // Lọc theo danh mục – toàn hệ thống (many-to-many)
+    Page<Product> findDistinctByCategories(Category category, Pageable pageable);
 
-    // Tìm theo tên + danh mục – toàn hệ thống
-    Page<Product> findByNameContainingIgnoreCaseAndCategory(
+    // Lọc theo categoryId – toàn hệ thống (many-to-many)
+    Page<Product> findDistinctByCategories_Id(Long categoryId, Pageable pageable);
+
+    // Tìm theo tên + danh mục – toàn hệ thống (many-to-many)
+    Page<Product> findDistinctByNameContainingIgnoreCaseAndCategories(
             String name,
             Category category,
+            Pageable pageable
+    );
+
+    // Tìm theo tên + categoryId – toàn hệ thống (many-to-many)
+    Page<Product> findDistinctByNameContainingIgnoreCaseAndCategories_Id(
+            String name,
+            Long categoryId,
             Pageable pageable
     );
 
@@ -57,18 +68,18 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     );
 
     /**
-     * Lọc sản phẩm theo DANH MỤC trong shop của 1 supplier cụ thể
+     * Lọc sản phẩm theo DANH MỤC trong shop của 1 supplier cụ thể (many-to-many)
      */
-    Page<Product> findBySupplier_IdAndCategory_Id(
+    Page<Product> findDistinctBySupplier_IdAndCategories_Id(
             Long supplierId,
             Long categoryId,
             Pageable pageable
     );
 
     /**
-     * Kết hợp: TÊN + DANH MỤC trong shop của 1 supplier cụ thể
+     * Kết hợp: TÊN + DANH MỤC trong shop của 1 supplier cụ thể (many-to-many)
      */
-    Page<Product> findBySupplier_IdAndNameContainingIgnoreCaseAndCategory_Id(
+    Page<Product> findDistinctBySupplier_IdAndNameContainingIgnoreCaseAndCategories_Id(
             Long supplierId,
             String name,
             Long categoryId,
@@ -76,23 +87,25 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     );
 
     // ==========================
-    // MỚI: TÊN + DANH MỤC + KHOẢNG GIÁ TRONG SHOP SUPPLIER
+    // MỚI: TÊN + DANH MỤC + KHOẢNG GIÁ TRONG SHOP SUPPLIER (many-to-many)
     // ==========================
 
     @Query("""
-           SELECT p FROM Product p
-           WHERE p.supplier.id = :supplierId
-             AND (:name IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%')))
-             AND (:categoryId IS NULL OR p.category.id = :categoryId)
-             AND (:minPrice IS NULL OR p.price >= :minPrice)
-             AND (:maxPrice IS NULL OR p.price <= :maxPrice)
-           """)
+       SELECT DISTINCT p FROM Product p
+       LEFT JOIN p.categories c
+       WHERE p.supplier.id = :supplierId
+         AND (:name IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%')))
+         AND (:minPrice IS NULL OR p.price >= :minPrice)
+         AND (:maxPrice IS NULL OR p.price <= :maxPrice)
+         AND (:categoryIds IS NULL OR c.id IN :categoryIds)
+       """)
     Page<Product> searchMyProducts(
             @Param("supplierId") Long supplierId,
             @Param("name") String name,
-            @Param("categoryId") Long categoryId,
+            @Param("categoryIds") List<Long> categoryIds,   // ⭐
             @Param("minPrice") Long minPrice,
             @Param("maxPrice") Long maxPrice,
             Pageable pageable
     );
+
 }

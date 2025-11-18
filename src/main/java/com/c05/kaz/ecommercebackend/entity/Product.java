@@ -27,9 +27,15 @@ public class Product {
     @JoinColumn(name = "supplier_id")
     private SupplierShop supplier;
 
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "category_id")
-    private Category category;
+    // ====== NHIỀU - NHIỀU VỚI CATEGORY ======
+    @ManyToMany
+    @JoinTable(
+            name = "product_categories",
+            joinColumns = @JoinColumn(name = "product_id"),
+            inverseJoinColumns = @JoinColumn(name = "category_id")
+    )
+    @Builder.Default
+    private List<Category> categories = new ArrayList<>();
 
     @Column(nullable = false, length = 255)
     private String name;
@@ -40,6 +46,10 @@ public class Product {
     @Min(1)
     @Column(nullable = false)
     private Long price; // VND
+
+    @Min(0)
+    @Column(name = "import_price")
+    private Long importPrice; // Giá nhập (VND)
 
     @Min(1)
     @Column(nullable = false)
@@ -56,6 +66,7 @@ public class Product {
             cascade = CascadeType.ALL,
             orphanRemoval = true
     )
+    @Builder.Default
     private List<ProductImage> images = new ArrayList<>();
 
     private Long soldQuantity = 0L;

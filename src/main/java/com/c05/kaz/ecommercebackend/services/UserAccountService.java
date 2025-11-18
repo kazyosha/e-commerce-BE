@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -152,4 +153,17 @@ public class UserAccountService {
 
         return customer;
     }
+
+    public Map<String, Long> getUserStats() {
+        long hr = userAccountRepository.countByUserType(UserType.HR);
+        long customer = userAccountRepository.countByUserType(UserType.CUSTOMER);
+        long supplier = userAccountRepository.countByUserType(UserType.SUPPLIER);
+
+        return Map.of(
+                "HR", hr,
+                "CUSTOMER", customer,
+                "SUPPLIER", supplier
+        );
+    }
+
 }

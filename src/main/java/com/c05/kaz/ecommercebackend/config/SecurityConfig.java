@@ -47,6 +47,16 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
 
+                        .requestMatchers("/api/admin/users/*/report")
+                        .hasAnyRole("ADMIN", "HR")
+
+                        .requestMatchers("/api/admin/users/reports/**")
+                        .hasAnyRole("ADMIN", "HR")
+                        .requestMatchers("/api/admin/users/reports")
+                        .hasAnyRole("ADMIN", "HR")
+
+                        .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "HR")
+
                         .requestMatchers("/api/suppliers/me/**").hasRole("SUPPLIER")
                         .requestMatchers("/api/customers/**","/api/cart/**","/api/orders/**").hasRole("CUSTOMER")
                         .requestMatchers("/api/supplier/**").authenticated()
