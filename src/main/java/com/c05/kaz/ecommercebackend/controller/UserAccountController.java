@@ -62,4 +62,8 @@ public class UserAccountController {
         userAccountService.activeUser(id);
         return ResponseEntity.ok("Đã kích hoạt tài khoản!");
     }
+    @GetMapping("/stats")
+    public ResponseEntity<?> getUserStats() {
+        return ResponseEntity.ok(userAccountService.getUserStats());
+    }
 }
