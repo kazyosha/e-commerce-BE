@@ -146,7 +146,7 @@ public class UserAccountService {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy tài khoản: " + username));
 
         // 4. Lấy Customer từ UserAccount
-        UserAccount customer = user.getCustomer();
+        UserAccount customer = userAccountRepository.findCustomerById(user.getId());
         if (customer == null) {
             throw new RuntimeException("Tài khoản hiện tại không phải khách hàng.");
         }
