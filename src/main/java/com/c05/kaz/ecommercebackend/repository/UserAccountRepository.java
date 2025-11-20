@@ -42,5 +42,4 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, Long> 
     );
 
     UserAccount findCustomerById(Long id);
-
 }
