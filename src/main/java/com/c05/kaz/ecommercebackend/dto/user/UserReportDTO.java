@@ -1,4 +1,4 @@
-package com.c05.kaz.ecommercebackend.dto;
+package com.c05.kaz.ecommercebackend.dto.user;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

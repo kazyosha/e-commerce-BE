@@ -1,6 +1,6 @@
 package com.c05.kaz.ecommercebackend.controller;
 
-import com.c05.kaz.ecommercebackend.dto.EmployeeProfileDTO;
+import com.c05.kaz.ecommercebackend.dto.user.EmployeeProfileDTO;
 import com.c05.kaz.ecommercebackend.services.EmployeeProfileService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

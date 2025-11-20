@@ -40,4 +40,7 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, Long> 
             @Param("search") String search,
             Pageable pageable
     );
+
+    UserAccount findCustomerById(Long id);
+
 }

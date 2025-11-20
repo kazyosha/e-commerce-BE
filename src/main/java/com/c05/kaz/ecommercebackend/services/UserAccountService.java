@@ -1,6 +1,6 @@
 package com.c05.kaz.ecommercebackend.services;
 
-import com.c05.kaz.ecommercebackend.dto.UserAccountDTO;
+import com.c05.kaz.ecommercebackend.dto.user.UserAccountDTO;
 import com.c05.kaz.ecommercebackend.entity.EmployeeProfile;
 import com.c05.kaz.ecommercebackend.entity.UserAccount;
 import com.c05.kaz.ecommercebackend.enums.AccountStatus;
@@ -146,7 +146,7 @@ public class UserAccountService {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy tài khoản: " + username));
 
         // 4. Lấy Customer từ UserAccount
-        UserAccount customer = user.getCustomer();
+        UserAccount customer = userAccountRepository.findCustomerById(user.getId());
         if (customer == null) {
             throw new RuntimeException("Tài khoản hiện tại không phải khách hàng.");
         }
