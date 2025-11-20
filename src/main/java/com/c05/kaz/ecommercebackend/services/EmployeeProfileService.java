@@ -1,6 +1,6 @@
 package com.c05.kaz.ecommercebackend.services;
 
-import com.c05.kaz.ecommercebackend.dto.EmployeeProfileDTO;
+import com.c05.kaz.ecommercebackend.dto.user.EmployeeProfileDTO;
 import com.c05.kaz.ecommercebackend.entity.EmployeeProfile;
 import com.c05.kaz.ecommercebackend.repository.EmployeeProfileRepository;
 import lombok.RequiredArgsConstructor;

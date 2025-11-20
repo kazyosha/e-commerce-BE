@@ -1,7 +1,7 @@
 package com.c05.kaz.ecommercebackend.services;
 
-import com.c05.kaz.ecommercebackend.dto.UserReportDTO;
-import com.c05.kaz.ecommercebackend.dto.UserReportRequest;
+import com.c05.kaz.ecommercebackend.dto.user.UserReportDTO;
+import com.c05.kaz.ecommercebackend.dto.user.UserReportRequest;
 import com.c05.kaz.ecommercebackend.entity.UserAccount;
 import com.c05.kaz.ecommercebackend.entity.UserReport;
 import com.c05.kaz.ecommercebackend.enums.AccountStatus;
@@ -14,7 +14,6 @@ import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import com.c05.kaz.ecommercebackend.exception.BadRequestException;
 
-import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 
 import org.springframework.mail.javamail.MimeMessageHelper;

@@ -1,6 +1,6 @@
 package com.c05.kaz.ecommercebackend.controller;
 
-import com.c05.kaz.ecommercebackend.dto.UserAccountDTO;
+import com.c05.kaz.ecommercebackend.dto.user.UserAccountDTO;
 import com.c05.kaz.ecommercebackend.entity.UserAccount;
 import com.c05.kaz.ecommercebackend.services.UserAccountService;
 import jakarta.validation.Valid;

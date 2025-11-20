@@ -1,6 +1,6 @@
 package com.c05.kaz.ecommercebackend.services;
 
-import com.c05.kaz.ecommercebackend.dto.UserAccountDTO;
+import com.c05.kaz.ecommercebackend.dto.user.UserAccountDTO;
 import com.c05.kaz.ecommercebackend.entity.EmployeeProfile;
 import com.c05.kaz.ecommercebackend.entity.UserAccount;
 import com.c05.kaz.ecommercebackend.enums.AccountStatus;
