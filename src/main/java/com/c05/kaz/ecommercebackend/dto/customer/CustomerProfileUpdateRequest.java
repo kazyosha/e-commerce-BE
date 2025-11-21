@@ -20,6 +20,10 @@ public class CustomerProfileUpdateRequest {
     @Size(max = 255, message = "Địa chỉ tối đa 255 ký tự")
     private String address;
 
+    private Integer provinceId;
+    private Integer districtId;
+    private String wardCode;
+
     @Past(message = "Ngày sinh không hợp lệ")
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate birthDate;

@@ -14,8 +14,19 @@ public class CustomerProfileResponse {
     private String email;
     private String phone;
     private String address;
+
+    private Integer provinceId;
+    private Integer districtId;
+    private String wardCode;
+
+
+    private String provinceName;
+    private String districtName;
+    private String wardName;
+
     private LocalDate birthDate;
     private String avatarUrl;
+    private Boolean emailVerified;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }
