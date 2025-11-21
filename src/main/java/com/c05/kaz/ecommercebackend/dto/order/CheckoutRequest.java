@@ -14,6 +14,7 @@ public class CheckoutRequest {
     private String receiverPhone;
     private String receiverAddress;
 
+    private Long shippingFee;
     private String promotionCode;
 
     private PaymentMethod paymentMethod; // COD hoặc BANK_GATEWAY

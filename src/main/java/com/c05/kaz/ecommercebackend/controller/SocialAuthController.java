@@ -1,5 +1,5 @@
 package com.c05.kaz.ecommercebackend.controller;
-import com.c05.kaz.ecommercebackend.dto.SocialLoginRequest;
+import com.c05.kaz.ecommercebackend.dto.user.SocialLoginRequest;
 import com.c05.kaz.ecommercebackend.services.SocialAuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

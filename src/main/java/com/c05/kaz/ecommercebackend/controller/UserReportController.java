@@ -1,6 +1,6 @@
 package com.c05.kaz.ecommercebackend.controller;
 
-import com.c05.kaz.ecommercebackend.dto.UserReportRequest;
+import com.c05.kaz.ecommercebackend.dto.user.UserReportRequest;
 import com.c05.kaz.ecommercebackend.services.UserReportService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

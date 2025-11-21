@@ -12,17 +12,17 @@ import java.util.List;
 public class ProductResponse {
 
     private Long id;
-
     private Long supplierId;
 
-    // ⭐ HỖ TRỢ NHIỀU DANH MỤC
+    // ⭐ ĐÚNG CHUẨN MANY-TO-MANY
     private List<Long> categoryIds;
-    private List<String> categoryName;
+    private List<String> categoryNames; // ⭐ FE cần field này
 
     private String name;
     private String description;
+
     private Long price;
-    private Long importPrice;  // ⭐ giá nhập
+    private Long importPrice;      // ⭐ giá nhập
     private Integer quantity;
     private boolean active;
 

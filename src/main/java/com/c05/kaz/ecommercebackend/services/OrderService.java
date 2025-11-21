@@ -136,6 +136,7 @@ public class OrderService {
                 .receiverAddress(order.getReceiverAddress())
                 .originalTotal(order.getOriginalTotal())
                 .discountAmount(order.getDiscountAmount())
+                .shippingFee(order.getShippingFee())
                 .finalTotal(order.getFinalTotal())
                 .status(order.getStatus().name())
                 .createdAt(order.getCreatedAt())
