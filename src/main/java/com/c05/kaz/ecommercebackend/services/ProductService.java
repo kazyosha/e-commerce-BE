@@ -53,7 +53,7 @@ public class ProductService {
                                     .map(Category::getId)
                                     .toList()
                     )
-                    .categoryName(
+                    .categoryNames(
                             p.getCategories().stream()
                                     .map(Category::getName)
                                     .toList()

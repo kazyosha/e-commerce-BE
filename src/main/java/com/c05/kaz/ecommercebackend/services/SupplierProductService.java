@@ -189,7 +189,7 @@ public class SupplierProductService {
                 .id(product.getId())
                 .supplierId(product.getSupplier().getId())
                 .categoryIds(categoryIds)
-                .categoryName(categoryNames)
+                .categoryNames(categoryNames)
                 .name(product.getName())
                 .description(product.getDescription())
                 .price(product.getPrice())
