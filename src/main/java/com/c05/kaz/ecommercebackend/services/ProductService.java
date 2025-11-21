@@ -10,11 +10,13 @@ import com.c05.kaz.ecommercebackend.repository.CategoryRepository;
 import com.c05.kaz.ecommercebackend.repository.ProductRepository;
 import com.c05.kaz.ecommercebackend.repository.SupplierRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -24,107 +26,87 @@ public class ProductService {
     private final CategoryRepository categoryRepository;
     private final SupplierRepository supplierRepository;
 
+    // ========================
+    // GET ALL PRODUCTS
+    // ========================
     public Page<Product> getAllProducts(int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         return productRepository.findAll(pageable);
     }
 
+    // ========================
+    // HOME PRODUCTS
+    // ========================
     public Page<ProductResponse> getHomeProducts(int page, int size) {
 
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-
         Page<Product> products = productRepository.findByActiveTrue(pageable);
 
-        return products.map(p -> {
+        return products.map(p -> ProductResponse.builder()
+                .id(p.getId())
+                .supplierId(p.getSupplier().getId())
+                .supplierName(p.getSupplier().getShopName())
 
-            // lấy ảnh đầu tiên làm thumbnail
-            String thumbnail = null;
-            if (p.getImages() != null && !p.getImages().isEmpty()) {
-                thumbnail = p.getImages().get(0).getImageUrl();
-            }
+                .categoryIds(
+                        p.getCategories().stream().map(Category::getId).toList()
+                )
+                .categoryName(
+                        p.getCategories().stream().map(Category::getName).toList()
+                )
 
-            return ProductResponse.builder()
-                    .id(p.getId())
-                    .supplierId(p.getSupplier().getId())
-                    .supplierName(p.getSupplier().getShopName())
+                .name(p.getName())
+                .description(p.getDescription())
+                .price(p.getPrice())
+                .importPrice(p.getImportPrice())
+                .quantity(p.getQuantity())
+                .active(p.isActive())
 
-                    .categoryIds(
-                            p.getCategories().stream()
-                                    .map(Category::getId)
-                                    .toList()
-                    )
-                    .categoryName(
-                            p.getCategories().stream()
-                                    .map(Category::getName)
-                                    .toList()
-                    )
+                .thumbnailUrl(p.getEffectiveThumbnail())
 
-                    .name(p.getName())
-                    .description(p.getDescription())
-                    .price(p.getPrice())
-                    .importPrice(p.getImportPrice())
-                    .quantity(p.getQuantity())
-                    .active(p.isActive())
+                .images(
+                        p.getImages().stream()
+                                .map(ProductImage::getImageUrl)
+                                .toList()
+                )
 
-                    .thumbnailUrl(p.getEffectiveThumbnail())
-                    .images(
-                            p.getImages().stream()
-                                    .map(ProductImage::getImageUrl)
-                                    .toList()
-                    )
-                    .soldQuantity(p.getSoldQuantity())
-                    .createdAt(p.getCreatedAt())
-                    .updatedAt(p.getUpdatedAt())
-
-                    .build();
-        });
+                .soldQuantity(p.getSoldQuantity())
+                .createdAt(p.getCreatedAt())
+                .updatedAt(p.getUpdatedAt())
+                .build());
     }
 
-    /**
-     * Search sản phẩm cho phía customer:
-     *  - keyword: tìm theo tên
-     *  - categoryId: lọc theo 1 danh mục (product có chứa category đó trong danh sách categories)
-     */
+    // ========================
+    // CUSTOMER SEARCH (old API)
+    // ========================
     public Page<Product> search(String keyword, Long categoryId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
         String kw = (keyword == null) ? "" : keyword.trim();
 
-        // Không keyword, không category -> trả về all
         if (kw.isEmpty() && categoryId == null) {
             return getAllProducts(page, size);
         }
 
-        // Có keyword, không category -> search theo tên
         if (!kw.isEmpty() && categoryId == null) {
             return productRepository.findByNameContainingIgnoreCase(kw, pageable);
         }
 
-        // Có category, không keyword -> lọc theo category
         if (kw.isEmpty()) {
             Category category = categoryRepository.findById(categoryId).orElse(null);
-            if (category == null) {
-                return Page.empty(pageable);
-            }
-            // many-to-many
+            if (category == null) return Page.empty(pageable);
+
             return productRepository.findDistinctByCategories(category, pageable);
         }
 
-        // Có cả keyword & category
         Category category = categoryRepository.findById(categoryId).orElse(null);
-        if (category == null) {
-            return Page.empty(pageable);
-        }
-        // many-to-many
-        return productRepository.findDistinctByNameContainingIgnoreCaseAndCategories(
-                kw,
-                category,
-                pageable
-        );
+        if (category == null) return Page.empty(pageable);
+
+        return productRepository
+                .findDistinctByNameContainingIgnoreCaseAndCategories(kw, category, pageable);
     }
 
-    /**
-     * Lấy top sản phẩm bán chạy theo shop
-     */
+    // ========================
+    // TOP SOLD PRODUCTS
+    // ========================
     public List<Product> getTopSoldByShop(Long shopId, int limit) {
         SupplierShop shop = supplierRepository.findById(shopId).orElse(null);
         if (shop == null) return List.of();
@@ -133,6 +115,9 @@ public class ProductService {
         return productRepository.findBySupplier(shop, pageable).getContent();
     }
 
+    // ========================
+    // PRODUCT DETAIL
+    // ========================
     public ProductDetailResponse getProductDetail(Long id) {
         Product p = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Product not found"));
@@ -145,17 +130,55 @@ public class ProductService {
                 .quantity(p.getQuantity())
                 .active(p.isActive())
                 .soldQuantity(p.getSoldQuantity())
-                .categoryId(p.getId())
-                .categoryName(p.getName())
+
+                // FIX BUG: lấy đúng category
+                .categoryId(
+                        p.getCategories().isEmpty()
+                                ? null
+                                : p.getCategories().get(0).getId()
+                )
+                .categoryName(
+                        p.getCategories().isEmpty()
+                                ? null
+                                : p.getCategories().get(0).getName()
+                )
+
                 .supplierId(p.getSupplier().getId())
                 .supplierName(p.getSupplier().getShopName())
+
                 .images(
-                        p.getImages() == null
-                                ? java.util.List.of()
-                                : p.getImages().stream()
-                                .map(img -> img.getImageUrl())
+                        p.getImages().stream()
+                                .map(ProductImage::getImageUrl)
                                 .toList()
                 )
                 .build();
     }
+
+    // ========================
+    // PUBLIC SEARCH (NEW)
+    // ========================
+    public Page<ProductResponse> searchPublic(String keyword, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+
+        Page<Product> result =
+                productRepository.searchPublicProducts(keyword, pageable);
+
+        return result.map(p -> ProductResponse.builder()
+                .id(p.getId())
+                .name(p.getName())
+                .price(p.getPrice())
+                .thumbnailUrl(
+                        p.getEffectiveThumbnail()
+                )
+                .build());
+    }
+    public List<String> suggest(String keyword) {
+        if (keyword == null || keyword.trim().isEmpty()) return List.of();
+        return productRepository
+                .findTop10ByNameContainingIgnoreCase(keyword.trim())
+                .stream()
+                .map(Product::getName)
+                .toList();
+    }
+
 }

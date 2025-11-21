@@ -108,4 +108,19 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             Pageable pageable
     );
 
+    // PUBLIC SEARCH (Customer search)
+// ==========================
+    @Query("""
+                SELECT p FROM Product p
+                WHERE 
+                    LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(p.description) LIKE LOWER(CONCAT('%', :keyword, '%'))
+            """)
+    Page<Product> searchPublicProducts(
+            @Param("keyword") String keyword,
+            Pageable pageable
+    );
+    List<Product> findTop10ByNameContainingIgnoreCase(String keyword);
+
+
 }

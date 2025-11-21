@@ -19,6 +19,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Service
@@ -91,7 +92,7 @@ public class UserReportService {
         userAccountRepository.save(user);
     }
 
-    // 💌 Gửi email cảnh cáo
+
     public void sendWarningEmail(Long reportId) {
         UserReport report = reportRepository.findById(reportId)
                 .orElseThrow(() -> new NotFoundException("Report không tồn tại"));
@@ -100,6 +101,9 @@ public class UserReportService {
 
         String toEmail = violatedUser.getEmail();
         String subject = "Cảnh báo vi phạm tài khoản";
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm:ss dd/MM/yyyy");
+        String formattedTime = report.getCreatedAt().format(formatter);
 
         String content = String.format("""
                 Xin chào %s,
@@ -120,7 +124,7 @@ public class UserReportService {
                 report.getSeverity().name(),
                 report.getReason(),
                 report.getDetail(),
-                report.getCreatedAt()
+                formattedTime
         );
 
         try {

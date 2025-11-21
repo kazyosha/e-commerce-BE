@@ -25,7 +25,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
         s.id,
         s.shopName,
         COALESCE(SUM(o.finalTotal), 0L),
-        COALESCE((SUM(o.finalTotal) * 3L) / 100L, 0L))
+        COALESCE((SUM(o.finalTotal) * 5L) / 100L, 0L))
     FROM SupplierShop s
     LEFT JOIN Order o
         ON o.supplier.id = s.id
