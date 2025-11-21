@@ -135,7 +135,8 @@ public class SocialAuthService {
                 "username", user.getUsername(),
                 "email", user.getEmail(),
                 "userType", user.getUserType().name(),
-                "emailVerified", user.isEmailVerified()
+                "emailVerified", user.isEmailVerified(),
+                "provider", user.getProvider().name()
         );
     }
 

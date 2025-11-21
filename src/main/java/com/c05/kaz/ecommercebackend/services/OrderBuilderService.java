@@ -18,18 +18,19 @@ import java.util.*;
 public class OrderBuilderService {
 
     private final CartRepository cartRepo;
-    private final ProductRepository productRepo;          // ⭐ thêm để hỗ trợ BUY NOW
+    private final ProductRepository productRepo; // hỗ trợ BUY NOW
     private final UserAccountService userAccountService;
     private final CustomerProfileService customerProfileService;
     private final PromotionService promotionService;
 
     /**
-     * Build danh sách Order NHÁP theo yêu cầu checkout.
+     * Build danh sách Order nháp theo yêu cầu checkout.
      * Hỗ trợ:
-     *  - Checkout từ GIỎ HÀNG: dùng cartItemId + quantity
-     *  - MUA NGAY: dùng productId + quantity
+     * - Checkout từ giỏ hàng (cartItemId + quantity)
+     * - Mua ngay (productId + quantity)
      */
     public List<Order> buildDraftOrders(CheckoutRequest req) {
+
         UserAccount user = userAccountService.getCurrentCustomer();
         CustomerProfile customer = customerProfileService.getByUser(user);
 
@@ -37,10 +38,8 @@ public class OrderBuilderService {
             throw new RuntimeException("Không có sản phẩm nào được chọn để thanh toán.");
         }
 
-        // Giỏ hàng (chỉ cần nếu có cartItemId)
         Cart cart = cartRepo.findByCustomer(user).orElse(null);
 
-        // Gom sản phẩm theo Supplier
         Map<SupplierShop, List<ProductSelection>> itemsBySupplier = new HashMap<>();
 
         for (CheckoutItemRequest itemReq : req.getItems()) {
@@ -48,8 +47,9 @@ public class OrderBuilderService {
             Product product;
             int reqQty;
 
-            // ====== 1. CHECKOUT TỪ GIỎ (có cartItemId) ======
+            // --- Checkout từ giỏ ---
             if (itemReq.getCartItemId() != null) {
+
                 if (cart == null || cart.getItems() == null || cart.getItems().isEmpty()) {
                     throw new RuntimeException("Giỏ hàng rỗng.");
                 }
@@ -62,31 +62,23 @@ public class OrderBuilderService {
                 product = ci.getProduct();
                 reqQty = itemReq.getQuantity() != null ? itemReq.getQuantity() : ci.getQuantity();
 
-                // ====== 2. MUA NGAY (có productId, không cần giỏ) ======
-            } else if (itemReq.getProductId() != null) {
+            }
+            // --- BUY NOW ---
+            else if (itemReq.getProductId() != null) {
+
                 product = productRepo.findById(itemReq.getProductId())
                         .orElseThrow(() -> new RuntimeException("Sản phẩm không tồn tại."));
-
                 reqQty = itemReq.getQuantity() != null ? itemReq.getQuantity() : 1;
-
-            } else {
-                // Thiếu cả cartItemId và productId → request sai
-                throw new RuntimeException("Dữ liệu sản phẩm không hợp lệ (thiếu cartItemId / productId).");
+            }
+            else {
+                throw new RuntimeException("Thiếu cartItemId hoặc productId.");
             }
 
-            // ====== VALIDATE CHUNG ======
-            if (reqQty <= 0) {
-                throw new RuntimeException("Số lượng phải lớn hơn 0.");
-            }
-
-            if (!product.isActive()) {
-                throw new RuntimeException("Sản phẩm " + product.getName() + " đang ngừng bán.");
-            }
-
-            int stock = product.getQuantity() != null ? product.getQuantity() : 0;
-            if (stock < reqQty) {
-                throw new RuntimeException("Sản phẩm " + product.getName()
-                        + " chỉ còn " + stock + " sản phẩm trong kho.");
+            // Validate chung
+            if (reqQty <= 0) throw new RuntimeException("Số lượng phải lớn hơn 0.");
+            if (!product.isActive()) throw new RuntimeException("Sản phẩm " + product.getName() + " đang ngừng bán.");
+            if ((product.getQuantity() == null ? 0 : product.getQuantity()) < reqQty) {
+                throw new RuntimeException("Sản phẩm " + product.getName() + " không đủ tồn kho.");
             }
 
             SupplierShop supplier = product.getSupplier();
@@ -97,14 +89,15 @@ public class OrderBuilderService {
         }
 
         if (itemsBySupplier.isEmpty()) {
-            throw new RuntimeException("Không tìm thấy sản phẩm hợp lệ để tạo đơn.");
+            throw new RuntimeException("Không tìm thấy sản phẩm để tạo đơn.");
         }
 
-        // ====== BUILD ORDER THEO TỪNG SUPPLIER ======
+        // ===== BUILD ORDER THEO MỖI SUPPLIER =====
         List<Order> draftOrders = new ArrayList<>();
         LocalDateTime now = LocalDateTime.now();
 
         for (Map.Entry<SupplierShop, List<ProductSelection>> entry : itemsBySupplier.entrySet()) {
+
             SupplierShop supplier = entry.getKey();
             List<ProductSelection> selections = entry.getValue();
 
@@ -112,21 +105,28 @@ public class OrderBuilderService {
             order.setSupplier(supplier);
             order.setCustomer(customer);
             order.setStatus(OrderStatus.PENDING);
+
+            // 💥 GÁN SHIPPING FEE (FE gửi lên)
+            long shippingFee = req.getShippingFee() != null ? req.getShippingFee() : 0L;
+            order.setShippingFee(shippingFee);
+
             order.setPaymentMethod(
                     req.getPaymentMethod() != null ? req.getPaymentMethod() : PaymentMethod.COD
             );
 
-            // Thông tin người nhận: ưu tiên từ request, fallback từ profile khách
+            // Receiver Info
             order.setReceiverName(
                     req.getReceiverName() != null && !req.getReceiverName().isBlank()
                             ? req.getReceiverName()
                             : customer.getFullName()
             );
+
             order.setReceiverPhone(
                     req.getReceiverPhone() != null && !req.getReceiverPhone().isBlank()
                             ? req.getReceiverPhone()
                             : customer.getPhone()
             );
+
             order.setReceiverAddress(
                     req.getReceiverAddress() != null && !req.getReceiverAddress().isBlank()
                             ? req.getReceiverAddress()
@@ -139,26 +139,28 @@ public class OrderBuilderService {
             List<OrderItem> orderItems = new ArrayList<>();
             long originalTotal = 0L;
 
+            // Tính tổng tiền sản phẩm
             for (ProductSelection ps : selections) {
                 Product product = ps.product;
-                int quantity = ps.quantity;
+                int qty = ps.quantity;
 
                 long unitPrice = product.getPrice();
-                long lineTotal = unitPrice * quantity;
+                long lineTotal = unitPrice * qty;
+
                 originalTotal += lineTotal;
 
                 OrderItem oi = OrderItem.builder()
                         .order(order)
                         .product(product)
                         .unitPrice(unitPrice)
-                        .quantity(quantity)
+                        .quantity(qty)
                         .lineTotal(lineTotal)
                         .build();
 
                 orderItems.add(oi);
             }
 
-            // Áp mã giảm giá (nếu có)
+            // Áp mã giảm giá
             long discountAmount = 0L;
             Promotion appliedPromotion = null;
 
@@ -168,13 +170,15 @@ public class OrderBuilderService {
                         supplier.getId(),
                         originalTotal
                 );
+
                 if (appliedPromotion != null) {
                     discountAmount = promotionService.calculateDiscount(appliedPromotion, originalTotal);
                     order.setPromotion(appliedPromotion);
                 }
             }
 
-            long finalTotal = originalTotal - discountAmount;
+            // ⭐⭐⭐ CỘNG SHIPPING FEE VÀO FINAL TOTAL ⭐⭐⭐
+            long finalTotal = originalTotal - discountAmount + shippingFee;
 
             order.setOriginalTotal(originalTotal);
             order.setDiscountAmount(discountAmount);
@@ -187,13 +191,12 @@ public class OrderBuilderService {
         return draftOrders;
     }
 
-    // Giữ nguyên để OrderService dùng
     public UserAccount getCurrentUser() {
         return userAccountService.getCurrentCustomer();
     }
 
     /**
-     * Helper nội bộ để gom product + quantity theo supplier
+     * Helper nội bộ
      */
     private static class ProductSelection {
         private final Product product;

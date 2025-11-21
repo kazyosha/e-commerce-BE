@@ -21,6 +21,8 @@ public class OrderSummaryResponse {
     private Long originalTotal;
     private Long discountAmount;
     private Long finalTotal;
+    private Long shippingFee;
+
 
     private String status;
     private LocalDateTime createdAt;

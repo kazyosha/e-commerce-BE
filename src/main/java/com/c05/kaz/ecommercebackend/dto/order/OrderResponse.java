@@ -17,6 +17,7 @@ public class OrderResponse {
     private Long originalTotal;
     private Long discountAmount;
     private Long finalTotal;
+    private Long shippingFee;
 
     private String receiverName;
     private String receiverPhone;
@@ -36,6 +37,8 @@ public class OrderResponse {
         dto.setOriginalTotal(order.getOriginalTotal());
         dto.setDiscountAmount(order.getDiscountAmount());
         dto.setFinalTotal(order.getFinalTotal());
+        dto.setShippingFee(order.getShippingFee());
+
 
         dto.setReceiverName(order.getReceiverName());
         dto.setReceiverPhone(order.getReceiverPhone());

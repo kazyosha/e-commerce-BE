@@ -66,6 +66,9 @@ public class Order {
     private Long discountAmount;
     private Long finalTotal;
 
+    @Column(name = "shipping_fee")
+    private Long shippingFee;
+
     @ManyToOne
     @JoinColumn(name = "promotion_id")
     private Promotion promotion;

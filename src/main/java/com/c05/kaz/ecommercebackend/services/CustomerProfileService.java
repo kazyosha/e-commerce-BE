@@ -24,10 +24,14 @@ public class CustomerProfileService {
     private final UserAccountRepository userAccountRepository;
     private final SecurityUtils securityUtils;
     private final CloudinaryService cloudinaryService;
+    private final GhnAddressService ghnAddressService;
 
+    // ================================
     // GET /api/customers/me
+    // ================================
     @Transactional(readOnly = true)
     public CustomerProfileResponse getMyProfile() {
+
         Long userId = securityUtils.getCurrentUserId();
 
         UserAccount user = userAccountRepository.findById(userId)
@@ -36,6 +40,7 @@ public class CustomerProfileService {
         CustomerProfile profile = customerProfileRepository.findByUser_Id(userId)
                 .orElse(null);
 
+        // Chưa có profile → trả về thông tin cơ bản
         if (profile == null) {
             return CustomerProfileResponse.builder()
                     .id(user.getId())
@@ -47,8 +52,11 @@ public class CustomerProfileService {
         return toResponse(profile, user);
     }
 
+    // ================================
     // PUT /api/customers/me
+    // ================================
     public CustomerProfileResponse updateMyProfile(CustomerProfileUpdateRequest request) {
+
         Long userId = securityUtils.getCurrentUserId();
 
         UserAccount user = userAccountRepository.findById(userId)
@@ -57,22 +65,34 @@ public class CustomerProfileService {
         CustomerProfile profile = customerProfileRepository.findByUser_Id(userId)
                 .orElseGet(() -> initProfileForUser(user));
 
+        // Cập nhật thông tin cơ bản
         profile.setFullName(request.getFullName().trim());
         profile.setPhone(request.getPhone().trim());
+        profile.setBirthDate(request.getBirthDate());
         profile.setAddress(
                 request.getAddress() != null && !request.getAddress().isBlank()
                         ? request.getAddress().trim()
                         : null
         );
-        profile.setBirthDate(request.getBirthDate());
+
+        // ⭐ Cập nhật 3 trường GHN
+        profile.setProvinceId(request.getProvinceId());
+        profile.setDistrictId(request.getDistrictId());
+        profile.setWardCode(request.getWardCode());
+
+
+
         profile.setUpdatedAt(LocalDateTime.now());
 
         CustomerProfile saved = customerProfileRepository.save(profile);
         return toResponse(saved, user);
     }
 
+    // ================================
     // PATCH /api/customers/me/avatar
+    // ================================
     public CustomerProfileResponse updateMyAvatar(MultipartFile avatarFile) {
+
         Long userId = securityUtils.getCurrentUserId();
 
         if (avatarFile == null || avatarFile.isEmpty()) {
@@ -93,6 +113,9 @@ public class CustomerProfileService {
         return toResponse(saved, user);
     }
 
+    // ================================
+    // INTERNAL: Lấy/khởi tạo profile
+    // ================================
     @Transactional(readOnly = true)
     public CustomerProfile getByUser(UserAccount user) {
         if (user == null || user.getId() == null) {
@@ -103,25 +126,47 @@ public class CustomerProfileService {
                 .orElseGet(() -> initProfileForUser(user));
     }
 
-    // Chỉ dùng ở đây, không dùng builder, không tự set id lạ
+    // ⭐ Khởi tạo profile mới cho user (KHÔNG làm mất dữ liệu GHN)
     private CustomerProfile initProfileForUser(UserAccount user) {
         CustomerProfile profile = new CustomerProfile();
-        profile.setUser(user); // @MapsId: id sẽ = user.id
+        profile.setUser(user);
         profile.setFullName(user.getUsername());
         profile.setCreatedAt(LocalDateTime.now());
         profile.setUpdatedAt(LocalDateTime.now());
         return customerProfileRepository.save(profile);
     }
 
+    // ================================
+    // Mapping entity → response DTO
+    // ================================
     private CustomerProfileResponse toResponse(CustomerProfile profile, UserAccount user) {
+
+        String provinceName = ghnAddressService.getProvinceName(profile.getProvinceId());
+        String districtName = ghnAddressService.getDistrictName(profile.getDistrictId());
+        String wardName = ghnAddressService.getWardName(
+                profile.getWardCode(),
+                profile.getDistrictId()
+        );
+
         return CustomerProfileResponse.builder()
-                .id(profile.getId() != null ? profile.getId() : user.getId())
+                .id(profile.getId())
                 .fullName(profile.getFullName())
                 .email(user.getEmail())
+
                 .phone(profile.getPhone())
                 .address(profile.getAddress())
+
+                .provinceId(profile.getProvinceId())
+                .districtId(profile.getDistrictId())
+                .wardCode(profile.getWardCode())
+
+                .provinceName(provinceName)
+                .districtName(districtName)
+                .wardName(wardName)
+
                 .birthDate(profile.getBirthDate())
                 .avatarUrl(profile.getAvatarUrl())
+                .emailVerified(user.isEmailVerified())
                 .createdAt(profile.getCreatedAt())
                 .updatedAt(profile.getUpdatedAt())
                 .build();
