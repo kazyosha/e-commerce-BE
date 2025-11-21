@@ -15,12 +15,9 @@ public class ProductController {
 
     private final ProductService productService;
 
-    @GetMapping
-    public ResponseEntity<?> getAll(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "12") int size
-    ) {
-        return ResponseEntity.ok(productService.getAllProducts(page, size));
+    @GetMapping("/all")
+    public ResponseEntity<?> getAllProducts() {
+        return ResponseEntity.ok(productService.getAllProducts());
     }
 
     // tìm kiếm theo keyword + categoryId (phục vụ trang chủ)

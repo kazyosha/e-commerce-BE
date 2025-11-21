@@ -1,6 +1,7 @@
 package com.c05.kaz.ecommercebackend.services;
 
 import com.c05.kaz.ecommercebackend.dto.order.*;
+import com.c05.kaz.ecommercebackend.dto.supplier.SupplierOrderDetailResponse;
 import com.c05.kaz.ecommercebackend.entity.*;
 import com.c05.kaz.ecommercebackend.enums.OrderStatus;
 import com.c05.kaz.ecommercebackend.enums.PaymentMethod;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -75,6 +77,17 @@ public class OrderService {
 
             order = orderRepo.save(order);
 
+            notificationService.notifyOrderCreatedForSupplier(
+                    order.getSupplier(),
+                    user,
+                    order.getId(),
+                    order.getFinalTotal()
+            );
+
+            notificationService.notifyOrderCreatedForCustomer(
+                    user,
+                    order.getId()
+            );
             responses.add(buildOrderSummary(order));
         }
 
@@ -141,6 +154,14 @@ public class OrderService {
         return customer.getId();
     }
 
+    public List<OrderResponse> getAllOrdersOfCustomer(Long customerId) {
+        List<Order> orders =
+                orderRepo.findByCustomer_IdOrderByCreatedAtDesc(customerId);
+        return orders.stream()
+                .map(OrderResponse::fromEntity)
+                .toList();
+    }
+
     // Danh sách đơn đã thanh toán (nếu em vẫn dùng field paid + COMPLETED)
     public List<OrderResponse> getPaidOrdersOfCustomer(Long customerId) {
         List<Order> orders =
@@ -183,8 +204,15 @@ public class OrderService {
 
         order.setStatus(OrderStatus.COMPLETED);
         // ❌ Không set paid nữa nếu em không muốn quản lý payment tại đây
-
+        order.setPaid(true);                        // <── FIX QUAN TRỌNG NHẤT
+        order.setUpdatedAt(LocalDateTime.now());
         Order saved = orderRepo.save(order);
+        SupplierShop shop = saved.getSupplier();
+        UserAccount customer = saved.getCustomer().getUser();
+
+        // 🔥 GỬI THÔNG BÁO CHO SHOP
+        notificationService.notifyOrderCompletedForSupplier(shop, orderId, customer);
+
         return OrderResponse.fromEntity(saved);
     }
 
@@ -345,5 +373,35 @@ public class OrderService {
         return orders.stream()
                 .map(OrderResponse::fromEntity)
                 .toList();
+    }
+
+    public SupplierOrderDetailResponse getOrderDetailForSupplier(Long orderId) {
+
+        Order order = orderRepo.findById(orderId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Không tìm thấy đơn hàng"));
+
+        // Lấy Supplier hiện đang đăng nhập
+        UserAccount current = orderBuilderService.getCurrentUser();
+
+        SupplierShop supplier = order.getSupplier();
+
+        // Không có supplier → dữ liệu lỗi trong DB
+        if (supplier == null || supplier.getUser() == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Đơn hàng không hợp lệ: thiếu thông tin nhà cung cấp"
+            );
+        }
+
+        // Sai chủ shop → trả 403
+        if (!supplier.getUser().getId().equals(current.getId())) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "Bạn không có quyền xem đơn này"
+            );
+        }
+
+        return SupplierOrderDetailResponse.from(order);
     }
 }

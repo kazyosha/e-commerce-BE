@@ -77,4 +77,10 @@ public class SupplierOrderController {
         OrderResponse res = orderService.supplierMarkShipping(supplierId, orderId);
         return ResponseEntity.ok(res);
     }
+
+    @GetMapping("/{orderId}")
+    @PreAuthorize("hasRole('SUPPLIER')")
+    public ResponseEntity<?> getOrderDetail(@PathVariable Long orderId) {
+        return ResponseEntity.ok(orderService.getOrderDetailForSupplier(orderId));
+    }
 }
