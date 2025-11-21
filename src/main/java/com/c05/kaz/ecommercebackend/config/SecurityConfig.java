@@ -4,6 +4,7 @@ import com.c05.kaz.ecommercebackend.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -35,6 +36,9 @@ public class SecurityConfig {
             "/api/auth/oauth/facebook",
             "/api/public/**",
             "/api/products/**",
+            "/api/ghn/provinces",
+            "/api/ghn/districts",
+            "/api/ghn/wards",
     };
 
     @Bean
@@ -45,23 +49,37 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+
+                        // 🔥 Quan trọng: Mở quyền cho GHN API
+                        .requestMatchers("/ghn/**").permitAll()
+
+                        .requestMatchers("/shipping/**").permitAll()
+
+                        // 🔥 Quan trọng: Cho phép tất cả OPTIONS (preflight)
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                        // Các endpoint public cũ
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
 
-                        .requestMatchers("/api/admin/users/*/report")
-                        .hasAnyRole("ADMIN", "HR")
-
-                        .requestMatchers("/api/admin/users/reports/**")
-                        .hasAnyRole("ADMIN", "HR")
-                        .requestMatchers("/api/admin/users/reports")
-                        .hasAnyRole("ADMIN", "HR")
-
+                        // Roles ADMIN + HR
+                        .requestMatchers("/api/admin/users/*/report").hasAnyRole("ADMIN", "HR")
+                        .requestMatchers("/api/admin/users/reports/**").hasAnyRole("ADMIN", "HR")
+                        .requestMatchers("/api/admin/users/reports").hasAnyRole("ADMIN", "HR")
                         .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "HR")
 
+                        // Roles SUPPLIER
                         .requestMatchers("/api/suppliers/me/**").hasRole("SUPPLIER")
-                        .requestMatchers("/api/customers/**","/api/cart/**","/api/orders/**").hasRole("CUSTOMER")
+
+                        // Roles CUSTOMER
+                        .requestMatchers("/api/customers/**", "/api/cart/**", "/api/orders/**")
+                        .hasRole("CUSTOMER")
+
+                        // Require login
                         .requestMatchers("/api/supplier/**").authenticated()
                         .requestMatchers("/api/authentic/**").authenticated()
                         .requestMatchers("/api/notifications/**").authenticated()
+
+                        // Tất cả còn lại cần JWT
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
@@ -74,11 +92,8 @@ public class SecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
 
         config.setAllowedOrigins(List.of("*"));
-
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-
         config.setAllowedHeaders(List.of("*"));
-
         config.setAllowCredentials(false);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

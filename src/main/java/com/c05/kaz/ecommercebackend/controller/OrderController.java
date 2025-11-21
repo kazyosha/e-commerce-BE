@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -40,6 +41,14 @@ public class OrderController {
                     .badRequest()
                     .body(Map.of("message", e.getMessage()));
         }
+    }
+
+    @GetMapping("/all")
+    public ResponseEntity<?> getAll() {
+        Long customerId = orderService.getCustomerIdByUsername(
+                SecurityContextHolder.getContext().getAuthentication().getName()
+        );
+        return ResponseEntity.ok(orderService.getAllOrdersOfCustomer(customerId));
     }
 
     // ===== ĐƠN ĐÃ THANH TOÁN =====

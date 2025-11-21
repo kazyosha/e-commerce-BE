@@ -1,5 +1,6 @@
 package com.c05.kaz.ecommercebackend.controller;
 
+import com.c05.kaz.ecommercebackend.entity.Product;
 import com.c05.kaz.ecommercebackend.services.ProductService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -9,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/public/products")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "*") // cho FE gọi thoải mái, sau này siết lại domain
 public class ProductController {
 
     private final ProductService productService;
@@ -23,6 +24,10 @@ public class ProductController {
             @RequestParam(defaultValue = "12") int size
     ) {
         return ResponseEntity.ok(productService.getAllProducts(page, size));
+    }
+    @GetMapping("/all")
+    public ResponseEntity<?> getAllProducts() {
+        return ResponseEntity.ok(productService.getAllProducts());
     }
 
     // ===============================
@@ -54,14 +59,10 @@ public class ProductController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "12") int size
     ) {
-        return ResponseEntity.ok(
-                productService.search(keyword, categoryId, page, size)
-        );
+        return ResponseEntity.ok(productService.search(keyword, categoryId, page, size));
     }
 
-    // ===============================
-    // TOP SOLD BY SHOP
-    // ===============================
+    // top bán chạy của 1 shop
     @GetMapping("/top-sold/{shopId}")
     public ResponseEntity<?> topSoldByShop(
             @PathVariable Long shopId,

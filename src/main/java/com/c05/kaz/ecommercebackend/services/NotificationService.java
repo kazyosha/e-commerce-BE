@@ -18,6 +18,45 @@ public class NotificationService {
 
     private final NotificationRepository notiRepo;
 
+    public void notifyOrderCreatedForSupplier(SupplierShop supplier, UserAccount customer, Long orderId, Long totalPrice) {
+
+        UserAccount receiver = supplier.getUser();  // Chủ shop nhận thông báo
+
+        Notification noti = Notification.builder()
+                .receiver(receiver)
+                .type(NotificationType.ORDER_CREATED)   // bạn nên thêm enum này
+                .title("Bạn có đơn hàng mới #" + orderId)
+                .content("Khách hàng " + customer.getUsername()
+                        + " vừa đặt đơn hàng #" + orderId
+                        + " với tổng tiền " + totalPrice + "đ.")
+                .relatedOrderId(orderId)
+                .readFlag(false)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        notiRepo.save(noti);
+    }
+
+    public void notifyOrderCreatedForCustomer(UserAccount customer, Long orderId) {
+        try {
+            Notification noti = Notification.builder()
+                    .receiver(customer)
+                    .type(NotificationType.ORDER_CREATED)
+                    .title("Đặt hàng thành công #" + orderId)
+                    .content("Bạn đã đặt đơn hàng #" + orderId + " thành công. "
+                            + "Đơn hàng đang chờ shop xác nhận.")
+                    .relatedOrderId(orderId)
+                    .readFlag(false)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+
+            notiRepo.save(noti);
+
+        } catch (Exception ex) {
+            log.error("Lỗi khi gửi thông báo đặt hàng mới cho customer: " + ex.getMessage());
+        }
+    }
+
     /**
      * Gửi thông báo đơn hàng bị hủy cho nhà cung cấp
      */
@@ -74,4 +113,23 @@ public class NotificationService {
             log.error("Lỗi khi gửi thông báo SHIPPING cho customer: " + ex.getMessage());
         }
     }
+
+    public void notifyOrderCompletedForSupplier(SupplierShop supplier, Long orderId, UserAccount customer) {
+        try {
+            Notification noti = Notification.builder()
+                    .receiver(supplier.getUser())  // chủ shop
+                    .type(NotificationType.ORDER_COMPLETED)
+                    .title("Đơn hàng #" + orderId + " đã giao thành công")
+                    .content("Khách hàng " + customer.getUsername() + " đã xác nhận đã nhận đơn hàng #" + orderId + ".")
+                    .relatedOrderId(orderId)
+                    .createdAt(LocalDateTime.now())
+                    .readFlag(false)
+                    .build();
+
+            notiRepo.save(noti);
+        } catch (Exception ex) {
+            log.error("Lỗi khi gửi thông báo hoàn tất đơn cho supplier: " + ex.getMessage());
+        }
+    }
+
 }

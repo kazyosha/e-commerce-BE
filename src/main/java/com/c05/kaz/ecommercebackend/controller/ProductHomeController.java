@@ -25,4 +25,21 @@ public class ProductHomeController {
     public ResponseEntity<ProductDetailResponse> getDetail(@PathVariable Long id) {
         return ResponseEntity.ok(productService.getProductDetail(id));
     }
+
+    @GetMapping("/related")
+    public ResponseEntity<?> getRelatedProducts(
+            @RequestParam Long categoryId,
+            @RequestParam Long excludeId
+    ) {
+        return ResponseEntity.ok(productService.getRelatedByCategory(categoryId, excludeId));
+    }
+
+
+    @GetMapping("/supplier/{supplierId}")
+    public ResponseEntity<?> getProductsBySupplier(
+            @PathVariable Long supplierId,
+            @RequestParam Long excludeId
+    ) {
+        return ResponseEntity.ok(productService.getBySupplier(supplierId, excludeId));
+    }
 }

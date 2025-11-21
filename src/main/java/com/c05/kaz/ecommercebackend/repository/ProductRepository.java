@@ -123,4 +123,19 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     List<Product> findTop10ByNameContainingIgnoreCase(String keyword);
 
 
+    @Query("""
+    SELECT DISTINCT p
+    FROM Product p
+    JOIN p.categories c
+    WHERE c.id = :categoryId
+      AND p.id <> :excludeId
+      AND p.active = true
+""")
+    List<Product> findRelatedByCategory(Long categoryId, Long excludeId);
+
+
+    @Query("SELECT p FROM Product p WHERE p.supplier.id = :supplierId AND p.id <> :excludeId AND p.active = true")
+    List<Product> findBySupplierExcept(Long supplierId, Long excludeId);
+
+
 }

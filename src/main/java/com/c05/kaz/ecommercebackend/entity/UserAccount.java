@@ -49,9 +49,9 @@ public class UserAccount {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private SocialProvider provider; // LOCAL/GOOGLE/FACEBOOK
+    private SocialProvider provider;
 
-    private String providerId; // id từ GG/FB nếu có
+    private String providerId;
 
     private boolean emailVerified;
 

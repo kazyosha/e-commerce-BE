@@ -56,6 +56,8 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
             Long customerId,
             Collection<OrderStatus> statuses
     );
+    List<Order> findByCustomer_IdOrderByCreatedAtDesc(Long customerId);
+
 
     // Lấy 1 đơn theo id + customer
     Optional<Order> findByIdAndCustomer_Id(Long orderId, Long customerId);

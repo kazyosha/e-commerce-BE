@@ -2,6 +2,7 @@ package com.c05.kaz.ecommercebackend.services;
 
 import com.c05.kaz.ecommercebackend.dto.product.ProductDetailResponse;
 import com.c05.kaz.ecommercebackend.dto.product.ProductResponse;
+import com.c05.kaz.ecommercebackend.dto.product.ProductSimpleResponse;
 import com.c05.kaz.ecommercebackend.entity.Category;
 import com.c05.kaz.ecommercebackend.entity.Product;
 import com.c05.kaz.ecommercebackend.entity.ProductImage;
@@ -17,6 +18,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -26,20 +28,64 @@ public class ProductService {
     private final CategoryRepository categoryRepository;
     private final SupplierRepository supplierRepository;
 
-    // ========================
-    // GET ALL PRODUCTS
-    // ========================
     public Page<Product> getAllProducts(int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         return productRepository.findAll(pageable);
     }
 
-    // ========================
-    // HOME PRODUCTS
-    // ========================
+    public List<ProductResponse> getAllProducts() {
+        return productRepository.findAll()
+                .stream()
+                .filter(Product::isActive)  // nếu chỉ lấy sản phẩm active
+                .map(this::toResponse)
+                .toList();
+    }
+
+    private ProductResponse toResponse(Product p) {
+
+        List<Long> categoryIds = p.getCategories().stream()
+                .map(Category::getId)
+                .toList();
+
+        List<String> categoryNames = p.getCategories().stream()
+                .map(Category::getName)
+                .toList();
+
+        return ProductResponse.builder()
+                .id(p.getId())
+                .supplierId(p.getSupplier().getId())
+                .supplierName(p.getSupplier().getShopName())
+
+                .categoryIds(categoryIds)
+                .categoryNames(categoryNames)
+
+                .name(p.getName())
+                .description(p.getDescription())
+                .price(p.getPrice())
+                .importPrice(p.getImportPrice())
+                .quantity(p.getQuantity())
+                .active(p.isActive())
+
+                .thumbnailUrl(p.getEffectiveThumbnail())
+                .images(
+                        p.getImages() == null ? List.of()
+                                : p.getImages().stream()
+                                .map(ProductImage::getImageUrl)
+                                .toList()
+                )
+
+                .soldQuantity(p.getSoldQuantity())
+                .createdAt(p.getCreatedAt())
+                .updatedAt(p.getUpdatedAt())
+
+                .build();
+    }
+
+
     public Page<ProductResponse> getHomeProducts(int page, int size) {
 
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+
         Page<Product> products = productRepository.findByActiveTrue(pageable);
 
         return products.map(p -> ProductResponse.builder()
@@ -47,12 +93,16 @@ public class ProductService {
                 .supplierId(p.getSupplier().getId())
                 .supplierName(p.getSupplier().getShopName())
 
-                .categoryIds(
-                        p.getCategories().stream().map(Category::getId).toList()
-                )
-                .categoryName(
-                        p.getCategories().stream().map(Category::getName).toList()
-                )
+                    .categoryIds(
+                            p.getCategories().stream()
+                                    .map(Category::getId)
+                                    .toList()
+                    )
+                    .categoryNames(
+                            p.getCategories().stream()
+                                    .map(Category::getName)
+                                    .toList()
+                    )
 
                 .name(p.getName())
                 .description(p.getDescription())
@@ -82,14 +132,17 @@ public class ProductService {
         Pageable pageable = PageRequest.of(page, size);
         String kw = (keyword == null) ? "" : keyword.trim();
 
+        // Không keyword, không category -> trả về all
         if (kw.isEmpty() && categoryId == null) {
             return getAllProducts(page, size);
         }
 
+        // Có keyword, không category -> search theo tên
         if (!kw.isEmpty() && categoryId == null) {
             return productRepository.findByNameContainingIgnoreCase(kw, pageable);
         }
 
+        // Có category, không keyword -> lọc theo category
         if (kw.isEmpty()) {
             Category category = categoryRepository.findById(categoryId).orElse(null);
             if (category == null) return Page.empty(pageable);
@@ -122,6 +175,16 @@ public class ProductService {
         Product p = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Product not found"));
 
+        // Lấy category đầu tiên
+        Long categoryId = null;
+        String categoryName = null;
+
+        if (p.getCategories() != null && !p.getCategories().isEmpty()) {
+            Category cat = p.getCategories().get(0);
+            categoryId = cat.getId();
+            categoryName = cat.getName();
+        }
+
         return ProductDetailResponse.builder()
                 .id(p.getId())
                 .name(p.getName())
@@ -142,6 +205,11 @@ public class ProductService {
                                 ? null
                                 : p.getCategories().get(0).getName()
                 )
+
+
+                // *** SỬA ĐÚNG Ở ĐÂY ***
+                .categoryId(categoryId)
+                .categoryName(categoryName)
 
                 .supplierId(p.getSupplier().getId())
                 .supplierName(p.getSupplier().getShopName())
@@ -179,6 +247,39 @@ public class ProductService {
                 .stream()
                 .map(Product::getName)
                 .toList();
+    }
+
+
+
+
+    public List<ProductSimpleResponse> getRelatedByCategory(Long categoryId, Long excludeId) {
+        return productRepository.findRelatedByCategory(categoryId, excludeId)
+                .stream()
+                .map(this::toSimple)
+                .toList();
+    }
+
+    public List<ProductSimpleResponse> getBySupplier(Long supplierId, Long excludeId) {
+        return productRepository.findBySupplierExcept(supplierId, excludeId)
+                .stream()
+                .map(this::toSimple)
+                .toList();
+    }
+
+    private ProductSimpleResponse toSimple(Product p) {
+        String thumbnail = null;
+
+        if (p.getImages() != null && !p.getImages().isEmpty()) {
+            thumbnail = p.getImages().get(0).getImageUrl();
+        }
+
+        return ProductSimpleResponse.builder()
+                .id(p.getId())
+                .name(p.getName())
+                .price(p.getPrice())
+                .thumbnailUrl(thumbnail)
+                .soldQuantity(p.getSoldQuantity())
+                .build();
     }
 
 }
