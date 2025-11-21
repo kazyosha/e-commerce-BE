@@ -33,6 +33,12 @@ public class CustomerProfile {
     @Column(length = 255)
     private String address;
 
+    private Integer provinceId;
+    private Integer districtId;
+
+    @Column(length = 20)
+    private String wardCode;
+
     private String avatarUrl;
 
     private LocalDateTime createdAt;
