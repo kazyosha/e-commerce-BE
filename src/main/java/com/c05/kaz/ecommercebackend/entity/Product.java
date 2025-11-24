@@ -27,6 +27,10 @@ public class Product {
     @JoinColumn(name = "supplier_id")
     private SupplierShop supplier;
 
+    // Chỉ số tự tăng theo từng nhà cung cấp
+    @Column(name = "supplier_product_index")
+    private Integer supplierProductIndex;
+
     // ====== NHIỀU - NHIỀU VỚI CATEGORY ======
     @ManyToMany
     @JoinTable(

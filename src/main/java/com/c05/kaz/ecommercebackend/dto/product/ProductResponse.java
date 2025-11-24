@@ -14,15 +14,18 @@ public class ProductResponse {
     private Long id;
     private Long supplierId;
 
-    // ⭐ ĐÚNG CHUẨN MANY-TO-MANY
+    // ⭐ ID nội bộ của nhà cung cấp (bạn vừa thêm)
+    private Integer supplierProductIndex;
+
+    // ⭐ MANY-TO-MANY
     private List<Long> categoryIds;
-    private List<String> categoryNames; // ⭐ FE cần field này
+    private List<String> categoryNames;
 
     private String name;
     private String description;
 
     private Long price;
-    private Long importPrice;      // ⭐ giá nhập
+    private Long importPrice;
     private Integer quantity;
     private boolean active;
 
