@@ -1,5 +1,6 @@
 package com.c05.kaz.ecommercebackend.controller;
 
+import com.c05.kaz.ecommercebackend.dto.product.AdvancedProductFilterDTO;
 import com.c05.kaz.ecommercebackend.entity.Product;
 import com.c05.kaz.ecommercebackend.services.ProductService;
 import lombok.RequiredArgsConstructor;
@@ -75,5 +76,33 @@ public class ProductController {
     public ResponseEntity<?> suggest(@RequestParam String keyword) {
         return ResponseEntity.ok(productService.suggest(keyword));
     }
+
+    @GetMapping("/advanced-search")
+    public ResponseEntity<?> advanced(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String sort,
+            @RequestParam(required = false) Integer minPrice,
+            @RequestParam(required = false) Integer maxPrice,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String location,
+            @RequestParam(required = false) Integer rating,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "12") int size
+    ) {
+        AdvancedProductFilterDTO dto = new AdvancedProductFilterDTO();
+
+        dto.setSearch(search);
+        dto.setSort(sort);
+        dto.setMinPrice(minPrice);
+        dto.setMaxPrice(maxPrice);
+        dto.setCategory(category);
+        dto.setLocation(location);
+        dto.setRating(rating);
+        dto.setPage(page);
+        dto.setSize(size);
+
+        return ResponseEntity.ok(productService.advancedSearch(dto));
+    }
+
 
 }
