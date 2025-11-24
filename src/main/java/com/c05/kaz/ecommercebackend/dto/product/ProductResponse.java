@@ -35,4 +35,7 @@ public class ProductResponse {
     private LocalDateTime updatedAt;
 
     private String supplierName;
+
+    private Long totalRevenue;     // doanh số
+    private Long netRevenue;       // doanh thu thực
 }
