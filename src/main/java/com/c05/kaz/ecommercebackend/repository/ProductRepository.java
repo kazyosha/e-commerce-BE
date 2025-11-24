@@ -138,4 +138,8 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     List<Product> findBySupplierExcept(Long supplierId, Long excludeId);
 
 
+    @Query("SELECT MAX(p.supplierProductIndex) FROM Product p WHERE p.supplier.id = :supplierId")
+    Integer findMaxIndexBySupplier(Long supplierId);
+
+
 }
