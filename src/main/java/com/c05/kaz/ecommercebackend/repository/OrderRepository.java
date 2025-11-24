@@ -70,6 +70,16 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     List<Order> findBySupplier_IdAndStatusOrderByCreatedAtDesc(Long supplierId, OrderStatus status);
 
     @Query("""
+        SELECT COUNT(o) > 0
+        FROM Order o
+        JOIN o.items i
+        WHERE o.customer.id = :customerId
+        AND i.product.id = :productId
+        AND o.status = 'COMPLETED'
+    """)
+    boolean hasPurchasedProduct(Long customerId, Long productId);
+
+    @Query("""
         SELECT 
             o.supplier.id AS supplierId,
             o.supplier.shopName AS shopName,

@@ -42,6 +42,8 @@ public class Notification {
     private Long relatedOrderId;
     private Long relatedProductId;
     private Long relatedPromotionId;
+    private Long relatedReviewId;
+
 
     private LocalDateTime createdAt;
 }

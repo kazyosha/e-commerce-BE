@@ -94,4 +94,7 @@ public class Product {
         }
         return null;
     }
+
+    private Double avgRating; // trung bình
+    private Long ratingCount; // tổng số đánh giá
 }

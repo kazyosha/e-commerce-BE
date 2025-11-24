@@ -9,10 +9,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "reviews",
-        uniqueConstraints = @UniqueConstraint(
-                name = "uk_review_customer_product",
-                columnNames = {"customer_id", "product_id"}))
+@Table(name = "reviews")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -23,29 +20,31 @@ public class Review {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // 1 khách / 1 sản phẩm / 1 shop: 1 review
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "customer_id")
-    private CustomerProfile customer;
-
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "product_id")
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "supplier_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id", nullable = false)
+    private CustomerProfile customer;
+
+    @ManyToOne
+    @JoinColumn(name = "supplier_id", referencedColumnName = "user_id")
     private SupplierShop supplier;
 
-    private Integer rating; // sao
+    private Integer rating;
 
     @Column(length = 2000)
     private String comment;
 
-    // phản hồi từ shop
-    @Column(length = 2000)
-    private String supplierReply;
+    @Column(columnDefinition = "JSON")
+    private String images;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-}
 
+    @Column(columnDefinition = "TEXT")
+    private String reply;  // nội dung phản hồi của shop
+
+    private LocalDateTime repliedAt; // thời gian phản hồi
+}

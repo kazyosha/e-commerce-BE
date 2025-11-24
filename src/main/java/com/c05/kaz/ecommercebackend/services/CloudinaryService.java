@@ -7,6 +7,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -80,5 +82,25 @@ public class CloudinaryService {
      */
     public void deleteFile(String publicId) throws IOException {
         cloudinary.uploader().destroy(publicId, ObjectUtils.emptyMap());
+    }
+
+    public String uploadImage(MultipartFile file) {
+        try {
+            Map uploadResult = cloudinary.uploader().upload(
+                    file.getBytes(),
+                    ObjectUtils.asMap("folder", "reviews")  // folder lưu ảnh review
+            );
+            return uploadResult.get("secure_url").toString();
+        } catch (IOException e) {
+            throw new RuntimeException("Upload ảnh thất bại", e);
+        }
+    }
+
+    public List<String> uploadFiles(MultipartFile[] files) {
+        List<String> urls = new ArrayList<>();
+        for (MultipartFile f : files) {
+            urls.add(uploadImage(f));
+        }
+        return urls;
     }
 }

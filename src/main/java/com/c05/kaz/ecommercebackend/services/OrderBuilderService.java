@@ -23,12 +23,6 @@ public class OrderBuilderService {
     private final CustomerProfileService customerProfileService;
     private final PromotionService promotionService;
 
-    /**
-     * Build danh sách Order nháp theo yêu cầu checkout.
-     * Hỗ trợ:
-     * - Checkout từ giỏ hàng (cartItemId + quantity)
-     * - Mua ngay (productId + quantity)
-     */
     public List<Order> buildDraftOrders(CheckoutRequest req) {
 
         UserAccount user = userAccountService.getCurrentCustomer();
@@ -82,6 +76,9 @@ public class OrderBuilderService {
             }
 
             SupplierShop supplier = product.getSupplier();
+            if (supplier == null) {
+                throw new RuntimeException("Sản phẩm " + product.getName() + " không thuộc cửa hàng nào.");
+            }
 
             itemsBySupplier
                     .computeIfAbsent(supplier, k -> new ArrayList<>())
@@ -152,6 +149,7 @@ public class OrderBuilderService {
                 OrderItem oi = OrderItem.builder()
                         .order(order)
                         .product(product)
+                        .supplier(product.getSupplier())
                         .unitPrice(unitPrice)
                         .quantity(qty)
                         .lineTotal(lineTotal)
