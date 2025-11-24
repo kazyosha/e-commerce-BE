@@ -159,7 +159,24 @@ public class SupplierProductService {
 
     private ProductResponse mapToResponse(Product product, List<String> imageUrls, String mainImageUrl) {
 
+        // ======== TÍNH DOANH THU ========
+
+        Long soldQty = product.getSoldQuantity() == null ? 0L : product.getSoldQuantity();
+        Long price = product.getPrice() == null ? 0L : product.getPrice();
+
+        // Doanh số (Gross Revenue)
+        Long totalRevenue = soldQty * price;
+
+        // PHÍ 5% HỆ THỐNG
+        Long fee5 = (long) (totalRevenue * 0.05);
+
+        // Doanh thu thực (Net Revenue)
+        Long netRevenue = totalRevenue - fee5;
+        if (netRevenue < 0) netRevenue = 0L;
+
+        // ========================================
         // Ảnh
+        // ========================================
         if (imageUrls == null || imageUrls.isEmpty()) {
             imageUrls = product.getImages()
                     .stream()
@@ -172,7 +189,9 @@ public class SupplierProductService {
             thumbnailUrl = imageUrls.get(0);
         }
 
+        // ========================================
         // Danh mục
+        // ========================================
         List<Category> categoryList = product.getCategories() != null
                 ? product.getCategories()
                 : Collections.emptyList();
@@ -185,6 +204,9 @@ public class SupplierProductService {
                 .map(Category::getName)
                 .toList();
 
+        // ========================================
+        // TRẢ VỀ DTO
+        // ========================================
         return ProductResponse.builder()
                 .id(product.getId())
                 .supplierId(product.getSupplier().getId())
@@ -193,16 +215,23 @@ public class SupplierProductService {
                 .name(product.getName())
                 .description(product.getDescription())
                 .price(product.getPrice())
-                .importPrice(product.getImportPrice())  // ⭐ thêm
+                .importPrice(product.getImportPrice())
                 .quantity(product.getQuantity())
                 .active(product.isActive())
                 .thumbnailUrl(thumbnailUrl)
                 .images(imageUrls)
+
                 .soldQuantity(product.getSoldQuantity())
+
+                // ⭐ GIỮ 2 GIÁ TRỊ DOANH THU
+                .totalRevenue(totalRevenue)
+                .netRevenue(netRevenue)
+
                 .createdAt(product.getCreatedAt())
                 .updatedAt(product.getUpdatedAt())
                 .build();
     }
+
 
     // =====================================
     //          LIST MY PRODUCTS
