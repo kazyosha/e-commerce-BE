@@ -137,5 +137,29 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     @Query("SELECT p FROM Product p WHERE p.supplier.id = :supplierId AND p.id <> :excludeId AND p.active = true")
     List<Product> findBySupplierExcept(Long supplierId, Long excludeId);
 
+    @Query("""
+    SELECT DISTINCT p FROM Product p
+    LEFT JOIN p.categories c
+    WHERE (:search IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :search, '%')))
+      AND (:category IS NULL OR LOWER(c.name) = LOWER(:category))
+      AND (:location IS NULL OR LOWER(p.supplier.address) LIKE LOWER(CONCAT('%', :location, '%')))
+      AND (:minPrice IS NULL OR p.price >= :minPrice)
+      AND (:maxPrice IS NULL OR p.price <= :maxPrice)
+      AND (:rating IS NULL OR p.avgRating >= :rating)
+""")
+    Page<Product> advancedSearch(
+            @Param("search") String search,
+            @Param("category") String category,
+            @Param("location") String location,
+            @Param("minPrice") Integer minPrice,
+            @Param("maxPrice") Integer maxPrice,
+            @Param("rating") Integer rating,
+            Pageable pageable
+    );
+
+
+    @Query("SELECT MAX(p.supplierProductIndex) FROM Product p WHERE p.supplier.id = :supplierId")
+    Integer findMaxIndexBySupplier(Long supplierId);
+
 
 }

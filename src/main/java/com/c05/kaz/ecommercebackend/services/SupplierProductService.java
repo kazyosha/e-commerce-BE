@@ -33,9 +33,6 @@ public class SupplierProductService {
     //           HELPER METHODS
     // =====================================
 
-    /**
-     * Lấy UserAccount hiện tại từ SecurityContext
-     */
     private UserAccount getCurrentUser() {
         String username = SecurityContextHolder.getContext()
                 .getAuthentication()
@@ -45,9 +42,6 @@ public class SupplierProductService {
                 .orElseThrow(() -> new RuntimeException("User không tồn tại"));
     }
 
-    /**
-     * Lấy shop của supplier hiện tại, đồng thời kiểm tra userType
-     */
     private SupplierShop getCurrentSupplierShopOrThrow() {
         UserAccount current = getCurrentUser();
 
@@ -60,12 +54,17 @@ public class SupplierProductService {
     }
 
     // =====================================
+    //  AUTO-INCREMENT INDEX PER SUPPLIER
+    // =====================================
+    private int getNextSupplierIndex(Long supplierId) {
+        Integer maxIndex = productRepository.findMaxIndexBySupplier(supplierId);
+        return (maxIndex == null) ? 1 : maxIndex + 1;
+    }
+
+    // =====================================
     //           CREATE PRODUCT
     // =====================================
 
-    /**
-     * Nhà cung cấp thêm 1 sản phẩm để kinh doanh
-     */
     public ProductResponse createProduct(ProductCreateRequest request, MultipartFile[] images) {
 
         if (images == null || images.length == 0) {
@@ -74,7 +73,6 @@ public class SupplierProductService {
 
         SupplierShop supplierShop = getCurrentSupplierShopOrThrow();
 
-        // 1. Lấy danh sách category từ request
         if (request.getCategoryIds() == null || request.getCategoryIds().isEmpty()) {
             throw new RuntimeException("Phải chọn ít nhất 1 danh mục");
         }
@@ -84,16 +82,19 @@ public class SupplierProductService {
             throw new RuntimeException("Không tìm thấy danh mục nào phù hợp");
         }
 
-        // 2. Tạo Product
         LocalDateTime now = LocalDateTime.now();
+
+        // ⭐ GÁN INDEX MỚI THEO SUPPLIER
+        int newIndex = getNextSupplierIndex(supplierShop.getId());
 
         Product product = Product.builder()
                 .supplier(supplierShop)
+                .supplierProductIndex(newIndex)          // ⭐ thêm vào đây
                 .categories(categories)
                 .name(request.getName())
                 .description(request.getDescription())
                 .price(request.getPrice())
-                .importPrice(request.getImportPrice())  // ⭐ thêm
+                .importPrice(request.getImportPrice())
                 .quantity(request.getQuantity())
                 .active(true)
                 .soldQuantity(0L)
@@ -103,7 +104,7 @@ public class SupplierProductService {
 
         product = productRepository.save(product);
 
-        // 3. Upload ảnh lên Cloudinary & lưu ProductImage
+        // ======== Upload ảnh ========
         List<String> imageUrls = new ArrayList<>();
         String mainImageUrl = null;
         boolean first = true;
@@ -114,9 +115,7 @@ public class SupplierProductService {
             try {
                 Map<?, ?> uploadResult = cloudinary.uploader().upload(
                         file.getBytes(),
-                        ObjectUtils.asMap(
-                                "folder", "market-hub/products/" + product.getId()
-                        )
+                        ObjectUtils.asMap("folder", "market-hub/products/" + product.getId())
                 );
 
                 String url = (String) uploadResult.get("secure_url");
@@ -159,24 +158,15 @@ public class SupplierProductService {
 
     private ProductResponse mapToResponse(Product product, List<String> imageUrls, String mainImageUrl) {
 
-        // ======== TÍNH DOANH THU ========
-
         Long soldQty = product.getSoldQuantity() == null ? 0L : product.getSoldQuantity();
         Long price = product.getPrice() == null ? 0L : product.getPrice();
 
-        // Doanh số (Gross Revenue)
         Long totalRevenue = soldQty * price;
-
-        // PHÍ 5% HỆ THỐNG
         Long fee5 = (long) (totalRevenue * 0.05);
 
-        // Doanh thu thực (Net Revenue)
         Long netRevenue = totalRevenue - fee5;
         if (netRevenue < 0) netRevenue = 0L;
 
-        // ========================================
-        // Ảnh
-        // ========================================
         if (imageUrls == null || imageUrls.isEmpty()) {
             imageUrls = product.getImages()
                     .stream()
@@ -189,9 +179,6 @@ public class SupplierProductService {
             thumbnailUrl = imageUrls.get(0);
         }
 
-        // ========================================
-        // Danh mục
-        // ========================================
         List<Category> categoryList = product.getCategories() != null
                 ? product.getCategories()
                 : Collections.emptyList();
@@ -204,12 +191,10 @@ public class SupplierProductService {
                 .map(Category::getName)
                 .toList();
 
-        // ========================================
-        // TRẢ VỀ DTO
-        // ========================================
         return ProductResponse.builder()
                 .id(product.getId())
                 .supplierId(product.getSupplier().getId())
+                .supplierProductIndex(product.getSupplierProductIndex())   // ⭐ THÊM DÒNG NÀY
                 .categoryIds(categoryIds)
                 .categoryNames(categoryNames)
                 .name(product.getName())
@@ -220,27 +205,18 @@ public class SupplierProductService {
                 .active(product.isActive())
                 .thumbnailUrl(thumbnailUrl)
                 .images(imageUrls)
-
                 .soldQuantity(product.getSoldQuantity())
-
-                // ⭐ GIỮ 2 GIÁ TRỊ DOANH THU
                 .totalRevenue(totalRevenue)
                 .netRevenue(netRevenue)
-
                 .createdAt(product.getCreatedAt())
                 .updatedAt(product.getUpdatedAt())
                 .build();
     }
 
-
     // =====================================
     //          LIST MY PRODUCTS
     // =====================================
 
-    /**
-     * Nhà cung cấp xem danh sách sản phẩm của chính mình
-     * (phân trang + search + lọc NHIỀU danh mục + khoảng giá)
-     */
     public Page<ProductResponse> getMyProducts(
             int page,
             int size,
@@ -251,15 +227,10 @@ public class SupplierProductService {
     ) {
         SupplierShop supplierShop = getCurrentSupplierShopOrThrow();
 
-        // Chuẩn hoá tham số
-        String keyword = (search == null || search.isBlank())
-                ? null
-                : search.trim();
+        String keyword = (search == null || search.isBlank()) ? null : search.trim();
 
         List<Long> filterCategoryIds =
-                (categoryIds == null || categoryIds.isEmpty())
-                        ? null
-                        : categoryIds;
+                (categoryIds == null || categoryIds.isEmpty()) ? null : categoryIds;
 
         Long min = (minPrice == null || minPrice <= 0) ? null : minPrice;
         Long max = (maxPrice == null || maxPrice <= 0) ? null : maxPrice;
@@ -269,7 +240,6 @@ public class SupplierProductService {
 
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
 
-        // searchMyProducts: đã cập nhật query để join categories & lọc theo IN (:categoryIds)
         Page<Product> productPage = productRepository.searchMyProducts(
                 supplierShop.getId(),
                 keyword,
@@ -286,9 +256,6 @@ public class SupplierProductService {
     //          GET MY PRODUCT DETAIL
     // =====================================
 
-    /**
-     * Nhà cung cấp xem chi tiết 1 sản phẩm của chính mình
-     */
     public ProductResponse getMyProductDetail(Long productId) {
         SupplierShop supplierShop = getCurrentSupplierShopOrThrow();
 
@@ -303,12 +270,6 @@ public class SupplierProductService {
     //          UPDATE PRODUCT
     // =====================================
 
-    /**
-     * Nhà cung cấp sửa thông tin sản phẩm
-     * - request: name / description / price / quantity / categoryIds / importPrice
-     * - newImages: ảnh mới upload thêm
-     * - keepImages: danh sách URL ảnh cũ muốn giữ lại
-     */
     public ProductResponse updateProduct(
             Long productId,
             ProductCreateRequest request,
@@ -321,7 +282,6 @@ public class SupplierProductService {
                 .findByIdAndSupplier_Id(productId, supplierShop.getId())
                 .orElseThrow(() -> new RuntimeException("Sản phẩm không tồn tại"));
 
-        // ------- Cập nhật thông tin cơ bản + danh mục -------
         if (request.getCategoryIds() == null || request.getCategoryIds().isEmpty()) {
             throw new RuntimeException("Phải chọn ít nhất 1 danh mục");
         }
@@ -334,27 +294,21 @@ public class SupplierProductService {
         product.setName(request.getName());
         product.setDescription(request.getDescription());
         product.setPrice(request.getPrice());
-        product.setImportPrice(request.getImportPrice()); // ⭐ thêm
+        product.setImportPrice(request.getImportPrice());
         product.setQuantity(request.getQuantity());
         product.setCategories(categories);
         product.setUpdatedAt(LocalDateTime.now());
 
-        // ------------ Xử lý ảnh ------------
-        if (keepImages == null) {
-            keepImages = new ArrayList<>();
-        }
+        if (keepImages == null) keepImages = new ArrayList<>();
 
-        // 1. Ảnh cũ
         List<ProductImage> oldImages = productImageRepository.findByProduct_Id(productId);
 
-        // Xoá những ảnh KHÔNG nằm trong keepImages
         for (ProductImage img : oldImages) {
             if (!keepImages.contains(img.getImageUrl())) {
                 productImageRepository.delete(img);
             }
         }
 
-        // 2. Upload ảnh mới
         List<String> finalUrls = new ArrayList<>(keepImages);
         String thumbnailUrl = keepImages.isEmpty() ? null : keepImages.get(0);
 
@@ -365,9 +319,7 @@ public class SupplierProductService {
                 try {
                     Map<?, ?> upload = cloudinary.uploader().upload(
                             file.getBytes(),
-                            ObjectUtils.asMap(
-                                    "folder", "market-hub/products/" + productId
-                            )
+                            ObjectUtils.asMap("folder", "market-hub/products/" + productId)
                     );
 
                     String url = (String) upload.get("secure_url");
@@ -401,12 +353,9 @@ public class SupplierProductService {
     }
 
     // =====================================
-    //          TOGGLE ACTIVE
+    //            TOGGLE ACTIVE
     // =====================================
 
-    /**
-     * Bật / tắt trạng thái sản phẩm (đang bán <-> ngừng bán)
-     */
     public ProductResponse toggleActive(Long productId) {
         SupplierShop supplierShop = getCurrentSupplierShopOrThrow();
 
@@ -423,14 +372,9 @@ public class SupplierProductService {
     }
 
     // =====================================
-    //          UPDATE PRODUCT IMAGES
+    //         UPDATE PRODUCT IMAGES
     // =====================================
 
-    /**
-     * Cập nhật ảnh sản phẩm
-     * - imageIdsToDelete: danh sách ID ảnh cần xoá
-     * - newImages: ảnh mới upload thêm
-     */
     public ProductResponse updateProductImages(
             Long productId,
             List<Long> imageIdsToDelete,
@@ -442,18 +386,15 @@ public class SupplierProductService {
                 .findByIdAndSupplier_Id(productId, supplierShop.getId())
                 .orElseThrow(() -> new RuntimeException("Sản phẩm không tồn tại"));
 
-        // ==== 1. Lấy tất cả ảnh hiện tại ====
         List<ProductImage> oldImages = productImageRepository.findByProduct_Id(productId);
 
-        if (imageIdsToDelete == null) {
-            imageIdsToDelete = List.of();
-        }
+        if (imageIdsToDelete == null) imageIdsToDelete = List.of();
 
         List<String> finalUrls = new ArrayList<>();
 
-        // ==== 2. Xoá ảnh được chọn ====
         for (ProductImage img : oldImages) {
             if (imageIdsToDelete.contains(img.getId())) {
+
                 if (img.getPublicId() != null) {
                     try {
                         cloudinary.uploader().destroy(img.getPublicId(), ObjectUtils.emptyMap());
@@ -461,13 +402,14 @@ public class SupplierProductService {
                         throw new RuntimeException("Xoá ảnh trên Cloudinary thất bại", e);
                     }
                 }
+
                 productImageRepository.delete(img);
+
             } else {
                 finalUrls.add(img.getImageUrl());
             }
         }
 
-        // ==== 3. Upload ảnh mới ====
         String thumbnailUrl = finalUrls.isEmpty() ? null : finalUrls.get(0);
 
         if (newImages != null) {
@@ -477,9 +419,7 @@ public class SupplierProductService {
                 try {
                     Map<?, ?> upload = cloudinary.uploader().upload(
                             file.getBytes(),
-                            ObjectUtils.asMap(
-                                    "folder", "market-hub/products/" + productId
-                            )
+                            ObjectUtils.asMap("folder", "market-hub/products/" + productId)
                     );
 
                     String url = (String) upload.get("secure_url");

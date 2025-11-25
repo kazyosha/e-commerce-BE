@@ -1,8 +1,6 @@
 package com.c05.kaz.ecommercebackend.services;
 
-import com.c05.kaz.ecommercebackend.dto.product.ProductDetailResponse;
-import com.c05.kaz.ecommercebackend.dto.product.ProductResponse;
-import com.c05.kaz.ecommercebackend.dto.product.ProductSimpleResponse;
+import com.c05.kaz.ecommercebackend.dto.product.*;
 import com.c05.kaz.ecommercebackend.entity.Category;
 import com.c05.kaz.ecommercebackend.entity.Product;
 import com.c05.kaz.ecommercebackend.entity.ProductImage;
@@ -19,6 +17,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
+
+
 
 @Service
 @RequiredArgsConstructor
@@ -281,5 +281,53 @@ public class ProductService {
                 .soldQuantity(p.getSoldQuantity())
                 .build();
     }
+    public Page<ProductListItemDTO> advancedSearch(AdvancedProductFilterDTO f) {
+
+        Pageable pageable = PageRequest.of(
+                f.getPage(),
+                f.getSize(),
+                buildSort(f.getSort())
+        );
+
+        Page<Product> pageData = productRepository.advancedSearch(
+                normalize(f.getSearch()),
+                normalize(f.getCategory()),
+                normalize(f.getLocation()),
+                f.getMinPrice(),
+                f.getMaxPrice(),
+                f.getRating(),
+                pageable
+        );
+
+        return pageData.map(p -> ProductListItemDTO.builder()
+                .id(p.getId())
+                .name(p.getName())
+                .price(p.getPrice())
+                .thumbnailUrl(p.getEffectiveThumbnail())
+                .soldQuantity(p.getSoldQuantity())
+                .avgRating(p.getAvgRating())
+                .shopName(p.getSupplier().getShopName())
+                .shopAddress(p.getSupplier().getAddress())
+                .build()
+        );
+    }
+    private Sort buildSort(String sort) {
+        if (sort == null || sort.isBlank() || sort.equals("popular")) {
+            return Sort.by(Sort.Direction.DESC, "soldQuantity");
+        }
+
+        return switch (sort) {
+            case "lowToHigh" -> Sort.by(Sort.Direction.ASC, "price");
+            case "highToLow" -> Sort.by(Sort.Direction.DESC, "price");
+            default -> Sort.by(Sort.Direction.DESC, "soldQuantity");
+        };
+    }
+    private String normalize(String s) {
+        if (s == null) return null;
+        s = s.trim();
+        return (s.isEmpty()) ? null : s;
+    }
+
+
 
 }
