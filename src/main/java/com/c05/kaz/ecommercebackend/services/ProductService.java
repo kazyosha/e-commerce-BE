@@ -1,8 +1,6 @@
 package com.c05.kaz.ecommercebackend.services;
 
-import com.c05.kaz.ecommercebackend.dto.product.ProductDetailResponse;
-import com.c05.kaz.ecommercebackend.dto.product.ProductResponse;
-import com.c05.kaz.ecommercebackend.dto.product.ProductSimpleResponse;
+import com.c05.kaz.ecommercebackend.dto.product.*;
 import com.c05.kaz.ecommercebackend.entity.Category;
 import com.c05.kaz.ecommercebackend.entity.Product;
 import com.c05.kaz.ecommercebackend.entity.ProductImage;
@@ -11,11 +9,16 @@ import com.c05.kaz.ecommercebackend.repository.CategoryRepository;
 import com.c05.kaz.ecommercebackend.repository.ProductRepository;
 import com.c05.kaz.ecommercebackend.repository.SupplierRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
+
+
 
 @Service
 @RequiredArgsConstructor
@@ -85,18 +88,10 @@ public class ProductService {
 
         Page<Product> products = productRepository.findByActiveTrue(pageable);
 
-        return products.map(p -> {
-
-            // lấy ảnh đầu tiên làm thumbnail
-            String thumbnail = null;
-            if (p.getImages() != null && !p.getImages().isEmpty()) {
-                thumbnail = p.getImages().get(0).getImageUrl();
-            }
-
-            return ProductResponse.builder()
-                    .id(p.getId())
-                    .supplierId(p.getSupplier().getId())
-                    .supplierName(p.getSupplier().getShopName())
+        return products.map(p -> ProductResponse.builder()
+                .id(p.getId())
+                .supplierId(p.getSupplier().getId())
+                .supplierName(p.getSupplier().getShopName())
 
                     .categoryIds(
                             p.getCategories().stream()
@@ -109,32 +104,30 @@ public class ProductService {
                                     .toList()
                     )
 
-                    .name(p.getName())
-                    .description(p.getDescription())
-                    .price(p.getPrice())
-                    .importPrice(p.getImportPrice())
-                    .quantity(p.getQuantity())
-                    .active(p.isActive())
+                .name(p.getName())
+                .description(p.getDescription())
+                .price(p.getPrice())
+                .importPrice(p.getImportPrice())
+                .quantity(p.getQuantity())
+                .active(p.isActive())
 
-                    .thumbnailUrl(p.getEffectiveThumbnail())
-                    .images(
-                            p.getImages().stream()
-                                    .map(ProductImage::getImageUrl)
-                                    .toList()
-                    )
-                    .soldQuantity(p.getSoldQuantity())
-                    .createdAt(p.getCreatedAt())
-                    .updatedAt(p.getUpdatedAt())
+                .thumbnailUrl(p.getEffectiveThumbnail())
 
-                    .build();
-        });
+                .images(
+                        p.getImages().stream()
+                                .map(ProductImage::getImageUrl)
+                                .toList()
+                )
+
+                .soldQuantity(p.getSoldQuantity())
+                .createdAt(p.getCreatedAt())
+                .updatedAt(p.getUpdatedAt())
+                .build());
     }
 
-    /**
-     * Search sản phẩm cho phía customer:
-     *  - keyword: tìm theo tên
-     *  - categoryId: lọc theo 1 danh mục (product có chứa category đó trong danh sách categories)
-     */
+    // ========================
+    // CUSTOMER SEARCH (old API)
+    // ========================
     public Page<Product> search(String keyword, Long categoryId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
         String kw = (keyword == null) ? "" : keyword.trim();
@@ -152,29 +145,21 @@ public class ProductService {
         // Có category, không keyword -> lọc theo category
         if (kw.isEmpty()) {
             Category category = categoryRepository.findById(categoryId).orElse(null);
-            if (category == null) {
-                return Page.empty(pageable);
-            }
-            // many-to-many
+            if (category == null) return Page.empty(pageable);
+
             return productRepository.findDistinctByCategories(category, pageable);
         }
 
-        // Có cả keyword & category
         Category category = categoryRepository.findById(categoryId).orElse(null);
-        if (category == null) {
-            return Page.empty(pageable);
-        }
-        // many-to-many
-        return productRepository.findDistinctByNameContainingIgnoreCaseAndCategories(
-                kw,
-                category,
-                pageable
-        );
+        if (category == null) return Page.empty(pageable);
+
+        return productRepository
+                .findDistinctByNameContainingIgnoreCaseAndCategories(kw, category, pageable);
     }
 
-    /**
-     * Lấy top sản phẩm bán chạy theo shop
-     */
+    // ========================
+    // TOP SOLD PRODUCTS
+    // ========================
     public List<Product> getTopSoldByShop(Long shopId, int limit) {
         SupplierShop shop = supplierRepository.findById(shopId).orElse(null);
         if (shop == null) return List.of();
@@ -183,6 +168,9 @@ public class ProductService {
         return productRepository.findBySupplier(shop, pageable).getContent();
     }
 
+    // ========================
+    // PRODUCT DETAIL
+    // ========================
     public ProductDetailResponse getProductDetail(Long id) {
         Product p = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Product not found"));
@@ -206,6 +194,19 @@ public class ProductService {
                 .active(p.isActive())
                 .soldQuantity(p.getSoldQuantity())
 
+                // FIX BUG: lấy đúng category
+                .categoryId(
+                        p.getCategories().isEmpty()
+                                ? null
+                                : p.getCategories().get(0).getId()
+                )
+                .categoryName(
+                        p.getCategories().isEmpty()
+                                ? null
+                                : p.getCategories().get(0).getName()
+                )
+
+
                 // *** SỬA ĐÚNG Ở ĐÂY ***
                 .categoryId(categoryId)
                 .categoryName(categoryName)
@@ -214,14 +215,40 @@ public class ProductService {
                 .supplierName(p.getSupplier().getShopName())
 
                 .images(
-                        p.getImages() == null
-                                ? java.util.List.of()
-                                : p.getImages().stream()
-                                .map(img -> img.getImageUrl())
+                        p.getImages().stream()
+                                .map(ProductImage::getImageUrl)
                                 .toList()
                 )
                 .build();
     }
+
+    // ========================
+    // PUBLIC SEARCH (NEW)
+    // ========================
+    public Page<ProductResponse> searchPublic(String keyword, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+
+        Page<Product> result =
+                productRepository.searchPublicProducts(keyword, pageable);
+
+        return result.map(p -> ProductResponse.builder()
+                .id(p.getId())
+                .name(p.getName())
+                .price(p.getPrice())
+                .thumbnailUrl(
+                        p.getEffectiveThumbnail()
+                )
+                .build());
+    }
+    public List<String> suggest(String keyword) {
+        if (keyword == null || keyword.trim().isEmpty()) return List.of();
+        return productRepository
+                .findTop10ByNameContainingIgnoreCase(keyword.trim())
+                .stream()
+                .map(Product::getName)
+                .toList();
+    }
+
 
 
 
@@ -254,5 +281,53 @@ public class ProductService {
                 .soldQuantity(p.getSoldQuantity())
                 .build();
     }
+    public Page<ProductListItemDTO> advancedSearch(AdvancedProductFilterDTO f) {
+
+        Pageable pageable = PageRequest.of(
+                f.getPage(),
+                f.getSize(),
+                buildSort(f.getSort())
+        );
+
+        Page<Product> pageData = productRepository.advancedSearch(
+                normalize(f.getSearch()),
+                normalize(f.getCategory()),
+                normalize(f.getLocation()),
+                f.getMinPrice(),
+                f.getMaxPrice(),
+                f.getRating(),
+                pageable
+        );
+
+        return pageData.map(p -> ProductListItemDTO.builder()
+                .id(p.getId())
+                .name(p.getName())
+                .price(p.getPrice())
+                .thumbnailUrl(p.getEffectiveThumbnail())
+                .soldQuantity(p.getSoldQuantity())
+                .avgRating(p.getAvgRating())
+                .shopName(p.getSupplier().getShopName())
+                .shopAddress(p.getSupplier().getAddress())
+                .build()
+        );
+    }
+    private Sort buildSort(String sort) {
+        if (sort == null || sort.isBlank() || sort.equals("popular")) {
+            return Sort.by(Sort.Direction.DESC, "soldQuantity");
+        }
+
+        return switch (sort) {
+            case "lowToHigh" -> Sort.by(Sort.Direction.ASC, "price");
+            case "highToLow" -> Sort.by(Sort.Direction.DESC, "price");
+            default -> Sort.by(Sort.Direction.DESC, "soldQuantity");
+        };
+    }
+    private String normalize(String s) {
+        if (s == null) return null;
+        s = s.trim();
+        return (s.isEmpty()) ? null : s;
+    }
+
+
 
 }

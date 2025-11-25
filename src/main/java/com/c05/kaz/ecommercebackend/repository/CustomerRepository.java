@@ -1,6 +1,7 @@
 package com.c05.kaz.ecommercebackend.repository;
 
 import com.c05.kaz.ecommercebackend.entity.CustomerProfile;
+import com.c05.kaz.ecommercebackend.entity.UserAccount;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
@@ -12,5 +13,7 @@ public interface CustomerRepository extends JpaRepository<CustomerProfile, Long>
     boolean existsByUser_Id(Long id);
 
     Optional<CustomerProfile> findByUser_Username(String username);
+
+    Optional<CustomerProfile> findByUser(UserAccount user);
 
 }

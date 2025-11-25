@@ -1,5 +1,6 @@
 package com.c05.kaz.ecommercebackend.controller;
 
+import com.c05.kaz.ecommercebackend.dto.product.AdvancedProductFilterDTO;
 import com.c05.kaz.ecommercebackend.entity.Product;
 import com.c05.kaz.ecommercebackend.services.ProductService;
 import lombok.RequiredArgsConstructor;
@@ -15,14 +16,45 @@ public class ProductController {
 
     private final ProductService productService;
 
+    // ===============================
+    // GET ALL PRODUCTS (HOME)
+    // ===============================
+    @GetMapping
+    public ResponseEntity<?> getAll(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "12") int size
+    ) {
+        return ResponseEntity.ok(productService.getAllProducts(page, size));
+    }
     @GetMapping("/all")
     public ResponseEntity<?> getAllProducts() {
         return ResponseEntity.ok(productService.getAllProducts());
     }
 
-    // tìm kiếm theo keyword + categoryId (phục vụ trang chủ)
+    // ===============================
+    // PUBLIC SEARCH (FE đang gọi)
+    // ===============================
     @GetMapping("/search")
-    public ResponseEntity<Page<Product>> search(
+    public ResponseEntity<?> searchPublic(
+            @RequestParam String keyword,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        if (keyword.trim().isEmpty()) {
+            return ResponseEntity.ok(Page.empty());
+        }
+
+        return ResponseEntity.ok(
+                productService.searchPublic(keyword.trim(), page, size)
+        );
+    }
+
+    // ===============================
+    // OLD SEARCH (DÙNG TRANG HOME FILTER)
+    //  → vẫn giữ, không xoá
+    // ===============================
+    @GetMapping("/filter")
+    public ResponseEntity<?> searchByCategoryAndKeyword(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Long categoryId,
             @RequestParam(defaultValue = "0") int page,
@@ -39,4 +71,38 @@ public class ProductController {
     ) {
         return ResponseEntity.ok(productService.getTopSoldByShop(shopId, limit));
     }
+
+    @GetMapping("/suggest")
+    public ResponseEntity<?> suggest(@RequestParam String keyword) {
+        return ResponseEntity.ok(productService.suggest(keyword));
+    }
+
+    @GetMapping("/advanced-search")
+    public ResponseEntity<?> advanced(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String sort,
+            @RequestParam(required = false) Integer minPrice,
+            @RequestParam(required = false) Integer maxPrice,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String location,
+            @RequestParam(required = false) Integer rating,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "12") int size
+    ) {
+        AdvancedProductFilterDTO dto = new AdvancedProductFilterDTO();
+
+        dto.setSearch(search);
+        dto.setSort(sort);
+        dto.setMinPrice(minPrice);
+        dto.setMaxPrice(maxPrice);
+        dto.setCategory(category);
+        dto.setLocation(location);
+        dto.setRating(rating);
+        dto.setPage(page);
+        dto.setSize(size);
+
+        return ResponseEntity.ok(productService.advancedSearch(dto));
+    }
+
+
 }

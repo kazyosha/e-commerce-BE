@@ -1,6 +1,7 @@
 package com.c05.kaz.ecommercebackend.entity;
 
 import com.c05.kaz.ecommercebackend.enums.Severity;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
@@ -38,6 +39,7 @@ public class UserReport {
     @Column(nullable = false)
     private Severity severity;
 
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "HH:mm:ss dd/MM/yyyy")
     private LocalDateTime createdAt;
 
     @PrePersist

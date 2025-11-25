@@ -22,9 +22,6 @@ public class JwtService {
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
-    // ======================================================
-    //  TOKEN ĐẦY ĐỦ (USERNAME + USERID + ROLES)
-    // ======================================================
     public String generateToken(UserDetails userDetails, Long userId) {
         return Jwts.builder()
                 .setSubject(userDetails.getUsername())
@@ -36,11 +33,6 @@ public class JwtService {
                 .compact();
     }
 
-    // ======================================================
-    //  CẤM DÙNG generateToken(String username)
-    //  (TOKEN TẠO TỪ HÀM NÀY KHÔNG CÓ USER ID → LỖI CHAT)
-    // ======================================================
-    @Deprecated
     public String generateToken(String username) {
         throw new RuntimeException(
                 "Không được dùng generateToken(String). " +
@@ -48,9 +40,6 @@ public class JwtService {
         );
     }
 
-    // ======================================================
-    //  TRÍCH XUẤT CLAIMS
-    // ======================================================
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
     }
@@ -64,9 +53,6 @@ public class JwtService {
         return resolver.apply(claims);
     }
 
-    // ======================================================
-    //  VALIDATION
-    // ======================================================
     public boolean isTokenValid(String token, UserDetails userDetails) {
         final String username = extractUsername(token);
         return username.equals(userDetails.getUsername()) && !isTokenExpired(token);

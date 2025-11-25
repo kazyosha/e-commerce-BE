@@ -25,7 +25,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
         s.id,
         s.shopName,
         COALESCE(SUM(o.finalTotal), 0L),
-        COALESCE((SUM(o.finalTotal) * 3L) / 100L, 0L))
+        COALESCE((SUM(o.finalTotal) * 5L) / 100L, 0L))
     FROM SupplierShop s
     LEFT JOIN Order o
         ON o.supplier.id = s.id
@@ -68,4 +68,57 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     List<Order> findBySupplier_IdOrderByCreatedAtDesc(Long supplierId);
 
     List<Order> findBySupplier_IdAndStatusOrderByCreatedAtDesc(Long supplierId, OrderStatus status);
+
+    @Query("""
+        SELECT COUNT(o) > 0
+        FROM Order o
+        JOIN o.items i
+        WHERE o.customer.id = :customerId
+        AND i.product.id = :productId
+        AND o.status = 'COMPLETED'
+    """)
+    boolean hasPurchasedProduct(Long customerId, Long productId);
+
+    @Query("""
+        SELECT 
+            o.supplier.id AS supplierId,
+            o.supplier.shopName AS shopName,
+            COUNT(o.id) AS totalOrders,
+            SUM(o.finalTotal) AS totalRevenue
+        FROM Order o
+        WHERE o.supplier.id = :supplierId
+          AND o.status = com.c05.kaz.ecommercebackend.enums.OrderStatus.COMPLETED
+        GROUP BY o.supplier.id, o.supplier.shopName
+    """)
+    List<Object[]> getRevenueBySupplier(Long supplierId);
+
+
+    @Query("""
+    SELECT 
+        s.id AS supplierId,
+        s.shopName AS shopName,
+        COUNT(o.id) AS totalOrders,
+        COALESCE(SUM(o.finalTotal), 0) AS totalRevenue
+    FROM SupplierShop s
+    LEFT JOIN Order o
+        ON o.supplier.id = s.id
+        AND o.status = com.c05.kaz.ecommercebackend.enums.OrderStatus.COMPLETED
+    GROUP BY s.id, s.shopName
+    ORDER BY s.id ASC
+""")
+    List<Object[]> getAllSuppliersRevenue();
+
+
+    @Query("""
+    SELECT 
+        MONTH(o.createdAt) AS month,
+        SUM(o.finalTotal) AS revenue
+    FROM Order o
+    WHERE o.status = com.c05.kaz.ecommercebackend.enums.OrderStatus.COMPLETED
+      AND YEAR(o.createdAt) = :year
+    GROUP BY MONTH(o.createdAt)
+    ORDER BY month ASC
+""")
+    List<Object[]> getMonthlyRevenue(int year);
+
 }

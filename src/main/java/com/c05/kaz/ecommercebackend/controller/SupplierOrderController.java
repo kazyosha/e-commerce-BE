@@ -1,6 +1,7 @@
 package com.c05.kaz.ecommercebackend.controller;
 
 import com.c05.kaz.ecommercebackend.dto.order.OrderResponse;
+import com.c05.kaz.ecommercebackend.dto.order.SupplierRejectRequest;
 import com.c05.kaz.ecommercebackend.entity.SupplierShop;
 import com.c05.kaz.ecommercebackend.entity.UserAccount;
 import com.c05.kaz.ecommercebackend.enums.OrderStatus;
@@ -83,4 +84,15 @@ public class SupplierOrderController {
     public ResponseEntity<?> getOrderDetail(@PathVariable Long orderId) {
         return ResponseEntity.ok(orderService.getOrderDetailForSupplier(orderId));
     }
+
+    @PostMapping("/{orderId}/reject")
+    @PreAuthorize("hasRole('SUPPLIER')")
+    public ResponseEntity<?> rejectOrder(
+            @PathVariable Long orderId,
+            @RequestBody SupplierRejectRequest request
+    ) {
+        OrderResponse response = orderService.supplierRejectOrder(orderId, request);
+        return ResponseEntity.ok(response);
+    }
+
 }

@@ -26,6 +26,10 @@ public class OrderItem {
     @JoinColumn(name = "product_id")
     private Product product;
 
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "supplier_id")
+    private SupplierShop supplier;
+
     private Long unitPrice;
     private Integer quantity;
     private Long lineTotal;

@@ -3,6 +3,7 @@ package com.c05.kaz.ecommercebackend.entity;
 import com.c05.kaz.ecommercebackend.enums.AccountStatus;
 import com.c05.kaz.ecommercebackend.enums.SocialProvider;
 import com.c05.kaz.ecommercebackend.enums.UserType;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Pattern;
 import lombok.AllArgsConstructor;
@@ -62,6 +63,7 @@ public class UserAccount {
     private Set<Role> roles = new HashSet<>();
 
     // audit
+//    @JsonFormat(pattern = "HH:mm:ss dd/MM/yyyy")
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 

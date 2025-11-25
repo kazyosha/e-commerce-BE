@@ -20,6 +20,7 @@ import java.util.List;
 public class SupplierShop {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id; // trùng với user_id
 
     @OneToOne

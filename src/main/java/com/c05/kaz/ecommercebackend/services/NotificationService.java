@@ -132,4 +132,62 @@ public class NotificationService {
         }
     }
 
+    public void notifyReviewCreatedForSupplier(SupplierShop supplier, UserAccount customer, Long productId, Long reviewId) {
+        try {
+            Notification noti = Notification.builder()
+                    .receiver(supplier.getUser()) // chủ shop
+                    .type(NotificationType.REVIEW_CREATED)
+                    .title("Sản phẩm của bạn vừa được đánh giá")
+                    .content("Khách hàng " + customer.getUsername() + " đã đánh giá sản phẩm của shop.")
+                    .relatedReviewId(reviewId)
+                    .relatedProductId(productId)
+                    .createdAt(LocalDateTime.now())
+                    .readFlag(false)
+                    .build();
+
+            notiRepo.save(noti);
+
+        } catch (Exception ex) {
+            log.error("Lỗi khi gửi thông báo REVIEW_CREATED cho supplier: " + ex.getMessage());
+        }
+    }
+
+    public void notifyReviewRepliedForCustomer(UserAccount customer, Long productId, Long reviewId) {
+        try {
+            Notification noti = Notification.builder()
+                    .receiver(customer)
+                    .type(NotificationType.REVIEW_REPLIED)
+                    .title("Nhà cung cấp đã phản hồi đánh giá của bạn")
+                    .content("Shop đã phản hồi đánh giá của bạn về sản phẩm.")
+                    .relatedReviewId(reviewId)
+                    .relatedProductId(productId)
+                    .createdAt(LocalDateTime.now())
+                    .readFlag(false)
+                    .build();
+
+            notiRepo.save(noti);
+
+        } catch (Exception ex) {
+            log.error("Lỗi khi gửi thông báo REVIEW_REPLIED cho customer: " + ex.getMessage());
+        }
+    }
+
+    public void notifyOrderRejectedForCustomer(UserAccount customer, Long orderId, String reasonMessage) {
+        try {
+            Notification noti = Notification.builder()
+                    .receiver(customer)
+                    .type(NotificationType.ORDER_REJECTED)
+                    .title("Đơn hàng #" + orderId + " bị từ chối")
+                    .content(reasonMessage)
+                    .relatedOrderId(null)
+                    .createdAt(LocalDateTime.now())
+                    .readFlag(false)
+                    .build();
+
+            notiRepo.save(noti);
+        } catch (Exception ex) {
+            log.error("Lỗi khi gửi thông báo cho customer: " + ex.getMessage());
+        }
+    }
+
 }
