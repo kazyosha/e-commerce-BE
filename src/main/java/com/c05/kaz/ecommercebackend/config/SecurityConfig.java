@@ -65,6 +65,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/users/*/report").hasAnyRole("ADMIN", "HR")
                         .requestMatchers("/api/admin/users/reports/**").hasAnyRole("ADMIN", "HR")
                         .requestMatchers("/api/admin/users/reports").hasAnyRole("ADMIN", "HR")
+                        .requestMatchers("/api/admin/users/basic/**").authenticated()
                         .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "HR")
 
                         // Roles SUPPLIER
@@ -77,6 +78,8 @@ public class SecurityConfig {
                         // Require login
                         .requestMatchers("/api/authentic/**").authenticated()
                         .requestMatchers("/api/notifications/**").authenticated()
+                        .requestMatchers("/api/chat/**").authenticated()
+                        .requestMatchers("/ws/**").permitAll()
 
                         // Tất cả còn lại cần JWT
                         .anyRequest().authenticated()

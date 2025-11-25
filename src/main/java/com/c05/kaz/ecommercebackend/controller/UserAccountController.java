@@ -1,7 +1,13 @@
 package com.c05.kaz.ecommercebackend.controller;
 
+import com.c05.kaz.ecommercebackend.dto.UserBasicDTO;
 import com.c05.kaz.ecommercebackend.dto.user.UserAccountDTO;
+import com.c05.kaz.ecommercebackend.entity.CustomerProfile;
+import com.c05.kaz.ecommercebackend.entity.SupplierShop;
 import com.c05.kaz.ecommercebackend.entity.UserAccount;
+import com.c05.kaz.ecommercebackend.repository.CustomerRepository;
+import com.c05.kaz.ecommercebackend.repository.SupplierRepository;
+import com.c05.kaz.ecommercebackend.repository.UserAccountRepository;
 import com.c05.kaz.ecommercebackend.services.UserAccountService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +21,9 @@ import org.springframework.web.bind.annotation.*;
 public class UserAccountController {
 
     private final UserAccountService userAccountService;
+    private final UserAccountRepository userRepo;
+    private final CustomerRepository customerRepo;
+    private final SupplierRepository supplierRepo;
 
 
     @GetMapping
@@ -66,4 +75,55 @@ public class UserAccountController {
     public ResponseEntity<?> getUserStats() {
         return ResponseEntity.ok(userAccountService.getUserStats());
     }
+
+    @GetMapping("/basic/{id}")
+    public ResponseEntity<?> getBasicInfo(@PathVariable Long id) {
+        UserAccount user = userRepo.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Nếu là customer
+        if (user.getUserType().name().equals("CUSTOMER")) {
+            CustomerProfile c = customerRepo.findByUser_Id(id)
+                    .orElse(null);
+
+            return ResponseEntity.ok(
+                    new UserBasicDTO(
+                            user.getId(),
+                            c != null ? c.getFullName() : null,
+                            user.getUsername(),
+                            null,
+                            c != null ? c.getAvatarUrl() : null
+                    )
+            );
+        }
+
+        // Nếu là supplier
+        if (user.getUserType().name().equals("SUPPLIER")) {
+            SupplierShop s = supplierRepo.findByUser_Id(id)
+                    .orElse(null);
+
+            return ResponseEntity.ok(
+                    new UserBasicDTO(
+                            user.getId(),
+                            null,
+                            user.getUsername(),
+                            s != null ? s.getShopName() : null,
+                            s != null ? s.getAvatarUrl() : null
+                    )
+            );
+        }
+
+        // Mặc định (admin, HR)
+        return ResponseEntity.ok(
+                new UserBasicDTO(
+                        user.getId(),
+                        null,
+                        user.getUsername(),
+                        null,
+                        null
+                )
+        );
+    }
+
+
 }

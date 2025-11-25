@@ -2,11 +2,8 @@ package com.c05.kaz.ecommercebackend.security;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
-import org.springframework.http.HttpStatus;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.security.Key;
 import java.util.Date;
@@ -25,9 +22,10 @@ public class JwtService {
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
-    public String generateToken(UserDetails userDetails) {
+    public String generateToken(UserDetails userDetails, Long userId) {
         return Jwts.builder()
                 .setSubject(userDetails.getUsername())
+                .claim("id", userId)              // ⭐ QUAN TRỌNG: userId cho chat
                 .claim("roles", userDetails.getAuthorities())
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_MS))
@@ -36,12 +34,10 @@ public class JwtService {
     }
 
     public String generateToken(String username) {
-        return Jwts.builder()
-                .setSubject(username)
-                .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 24))
-                .signWith(getSignInKey(), SignatureAlgorithm.HS256)
-                .compact();
+        throw new RuntimeException(
+                "Không được dùng generateToken(String). " +
+                        "Hãy dùng generateToken(UserDetails, userId) để token chứa id!"
+        );
     }
 
     public String extractUsername(String token) {
@@ -81,5 +77,10 @@ public class JwtService {
         return data;
     }
 
-
+    // ======================================================
+    //  LẤY USER ID TỪ TOKEN
+    // ======================================================
+    public Long extractUserId(String token) {
+        return extractClaim(token, claims -> claims.get("id", Long.class));
+    }
 }

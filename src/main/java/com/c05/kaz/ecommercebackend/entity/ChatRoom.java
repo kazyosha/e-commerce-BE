@@ -1,16 +1,13 @@
 package com.c05.kaz.ecommercebackend.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
+import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "chat_rooms")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -20,15 +17,51 @@ public class ChatRoom {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // mỗi room giữa 1 customer & 1 shop
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "customer_id")
+    // ================================
+    // Quan hệ với CustomerProfile
+    // ================================
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id", nullable = false)
     private CustomerProfile customer;
 
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "supplier_id")
+    // ================================
+    // Quan hệ với SupplierShop
+    // ================================
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "supplier_id", nullable = false)
     private SupplierShop supplier;
 
-    private LocalDateTime createdAt;
-}
+    // optionally gắn với đơn hàng
+    @Column(name = "order_id")
+    private Long orderId;
 
+    // lưu để FE load nhanh
+    @Column(name = "last_message", length = 500)
+    private String lastMessage;
+
+    @Column(name = "last_sender_id")
+    private Long lastSenderId;
+
+    // số tin chưa đọc của customer
+    @Column(nullable = false)
+    private Integer customerUnread = 0;
+
+    // số tin chưa đọc của supplier
+    @Column(nullable = false)
+    private Integer supplierUnread = 0;
+
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    public void prePersist() {
+        LocalDateTime now = LocalDateTime.now();
+        this.createdAt = now;
+        this.updatedAt = now;
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        this.updatedAt = LocalDateTime.now();
+    }
+}
