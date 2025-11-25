@@ -1,5 +1,7 @@
 package com.c05.kaz.ecommercebackend.controller;
 
+import com.c05.kaz.ecommercebackend.dto.auth.AuthResponseAll;
+import com.c05.kaz.ecommercebackend.dto.auth.UserDTO;
 import com.c05.kaz.ecommercebackend.entity.UserAccount;
 import com.c05.kaz.ecommercebackend.enums.AccountStatus;
 import com.c05.kaz.ecommercebackend.enums.SocialProvider;
@@ -12,18 +14,14 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.authentication.*;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
-
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -77,9 +75,20 @@ public class AuthController {
                 .authorities(user.getRoles().stream().map(r -> "ROLE_" + r.getCode()).toArray(String[]::new))
                 .build();
 
-        String token = jwtService.generateToken(springUser);
+        String token = jwtService.generateToken(springUser, user.getId());
 
-        return ResponseEntity.ok(new AuthResponse(token, user.getUsername(), user.getUserType().name()));
+        return ResponseEntity.ok(
+                new AuthResponseAll(
+                        token,
+                        new UserDTO(
+                                user.getId(),
+                                user.getUsername(),
+                                user.getEmail(),
+                                user.getUserType().name(),
+                                user.getRoles()
+                        )
+                )
+        );
     }
 
     // ================== QUÊN MẬT KHẨU ==================
@@ -143,7 +152,8 @@ public class AuthController {
                 User.withUsername(user.getUsername())
                         .password(user.getPassword())
                         .authorities("ROLE_" + roleCode)
-                        .build()
+                        .build(),
+                user.getId()
         );
 
         return ResponseEntity.ok(new AuthResponse(token, user.getUsername(), user.getUserType().name()));

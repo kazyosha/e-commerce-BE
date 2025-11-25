@@ -24,4 +24,6 @@ public interface SupplierRepository extends JpaRepository<SupplierShop, Long> {
     List<SupplierShop> findByStatus(SupplierStatus status);
 
     Optional<Object> findByUser(UserAccount user);
+
+    Optional<SupplierShop> findByUserId(Long userId);
 }

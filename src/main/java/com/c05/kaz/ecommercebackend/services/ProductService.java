@@ -54,7 +54,7 @@ public class ProductService {
                 .supplierName(p.getSupplier().getShopName())
 
                 .categoryIds(categoryIds)
-                .categoryName(categoryNames)
+                .categoryNames(categoryNames)
 
                 .name(p.getName())
                 .description(p.getDescription())

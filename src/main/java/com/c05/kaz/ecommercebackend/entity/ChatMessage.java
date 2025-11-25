@@ -1,16 +1,14 @@
 package com.c05.kaz.ecommercebackend.entity;
 
+import com.c05.kaz.ecommercebackend.enums.MessageStatus;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
+import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "chat_messages")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -20,19 +18,39 @@ public class ChatMessage {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "room_id")
+    // ================================
+    // Quan hệ với ChatRoom
+    // ================================
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "room_id", nullable = false)
     private ChatRoom room;
 
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "sender_id")
-    private UserAccount sender;
+    // Người gửi (có thể là CustomerProfile hoặc SupplierShop →
+    // chỉ lưu user_id để đơn giản hóa)
+    @Column(name = "sender_id", nullable = false)
+    private Long senderId;
 
-    @Column(nullable = false, length = 2000)
-    private String message;
+    // Người nhận
+    @Column(name = "receiver_id", nullable = false)
+    private Long receiverId;
 
-    private LocalDateTime sentAt;
 
-    private boolean readFlag;
+    @Column(columnDefinition = "TEXT", nullable = false)
+    private String content;
+
+    private String imageUrl;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private MessageStatus status;
+
+    private LocalDateTime createdAt;
+
+    @PrePersist
+    public void prePersist() {
+        this.createdAt = LocalDateTime.now();
+        if (this.status == null) {
+            this.status = MessageStatus.SENT;
+        }
+    }
 }
-
