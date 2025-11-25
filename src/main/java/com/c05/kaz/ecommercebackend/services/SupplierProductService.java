@@ -3,6 +3,7 @@ package com.c05.kaz.ecommercebackend.services;
 import com.c05.kaz.ecommercebackend.dto.product.ProductCreateRequest;
 import com.c05.kaz.ecommercebackend.dto.product.ProductResponse;
 import com.c05.kaz.ecommercebackend.entity.*;
+import com.c05.kaz.ecommercebackend.enums.DiscountStatus;
 import com.c05.kaz.ecommercebackend.enums.UserType;
 import com.c05.kaz.ecommercebackend.repository.*;
 import com.cloudinary.Cloudinary;
@@ -27,6 +28,7 @@ public class SupplierProductService {
     private final CategoryRepository categoryRepository;
     private final SupplierRepository supplierRepository;
     private final UserAccountRepository userAccountRepository;
+    private final DiscountRepository discountRepository;
     private final Cloudinary cloudinary;
 
     // =====================================
@@ -191,10 +193,19 @@ public class SupplierProductService {
                 .map(Category::getName)
                 .toList();
 
+        // =====================================================
+        // ⭐ LẤY DANH SÁCH MÃ GIẢM GIÁ ÁP DỤNG CHO SẢN PHẨM
+        // =====================================================
+        List<String> discountCodes = discountRepository.findByApplicableProductsContains(product)
+                .stream()
+                .filter(d -> d.getStatus() == DiscountStatus.ACTIVE)  // ⭐ Lọc chỉ lấy ACTIVE
+                .map(Discount::getCode)
+                .toList();
+
         return ProductResponse.builder()
                 .id(product.getId())
                 .supplierId(product.getSupplier().getId())
-                .supplierProductIndex(product.getSupplierProductIndex())   // ⭐ THÊM DÒNG NÀY
+                .supplierProductIndex(product.getSupplierProductIndex())
                 .categoryIds(categoryIds)
                 .categoryNames(categoryNames)
                 .name(product.getName())
@@ -210,8 +221,13 @@ public class SupplierProductService {
                 .netRevenue(netRevenue)
                 .createdAt(product.getCreatedAt())
                 .updatedAt(product.getUpdatedAt())
+
+                // ⭐ ADD HERE
+                .discountCodes(discountCodes)
+
                 .build();
     }
+
 
     // =====================================
     //          LIST MY PRODUCTS
