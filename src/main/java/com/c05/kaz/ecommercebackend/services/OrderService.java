@@ -355,4 +355,78 @@ public class OrderService {
         return SupplierOrderDetailResponse.from(order);
     }
 
+    @Transactional
+    public OrderResponse supplierRejectOrder(Long orderId, SupplierRejectRequest req) {
+
+        // 🔥 LẤY USER SUPPLIER (KHÔNG DÙNG getCurrentCustomer)
+        UserAccount currentSupplier = orderBuilderService.getCurrentUser();
+
+        // Lấy đơn hàng
+        Order order = orderRepo.findById(orderId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Không tìm thấy đơn"));
+
+        // 🔥 CHECK QUYỀN: SUPPLIER.CHÍNH CHỦ
+        Long supplierUserId = order.getSupplier().getUser().getId();
+        Long currentUserId = currentSupplier.getId();
+
+        if (!supplierUserId.equals(currentUserId)) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "Bạn không có quyền từ chối đơn này"
+            );
+        }
+
+
+        // 🔥 CHỈ CHO TỪ CHỐI KHI PENDING HOẶC CONFIRMED
+        if (!(order.getStatus() == OrderStatus.PENDING ||
+                order.getStatus() == OrderStatus.CONFIRMED)) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Không thể từ chối đơn ở trạng thái hiện tại");
+        }
+
+        // 🔥 ROLLBACK STOCK nếu đơn đã xác nhận
+        if (order.getStatus() == OrderStatus.CONFIRMED) {
+            for (OrderItem item : order.getItems()) {
+                Product p = item.getProduct();
+                p.setQuantity(p.getQuantity() + item.getQuantity());
+                productRepo.save(p);
+            }
+        }
+
+        // 🔥 Cập nhật trạng thái đơn
+        order.setStatus(OrderStatus.REJECTED);
+        order.setUpdatedAt(LocalDateTime.now());
+
+        Order saved = orderRepo.save(order);
+
+        // 🔥 Gửi thông báo cho khách
+        String message =
+                "Đơn hàng #" + orderId + " đã bị từ chối bởi nhà cung cấp.\n\n"
+                        + "Lý do: " + req.getReason();
+
+        notificationService.notifyOrderRejectedForCustomer(
+                order.getCustomer().getUser(),
+                orderId,
+                message
+        );
+
+        return OrderResponse.fromEntity(saved);
+    }
+
+    public List<OrderResponse> getRejectedOrdersOfCustomer(Long customerId) {
+
+        List<Order> orders =
+                orderRepo.findByCustomer_IdAndStatusOrderByCreatedAtDesc(
+                        customerId,
+                        OrderStatus.REJECTED
+                );
+
+        return orders.stream()
+                .map(OrderResponse::fromEntity)
+                .toList();
+    }
+
 }

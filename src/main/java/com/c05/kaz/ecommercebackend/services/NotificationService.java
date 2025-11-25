@@ -171,4 +171,23 @@ public class NotificationService {
             log.error("Lỗi khi gửi thông báo REVIEW_REPLIED cho customer: " + ex.getMessage());
         }
     }
+
+    public void notifyOrderRejectedForCustomer(UserAccount customer, Long orderId, String reasonMessage) {
+        try {
+            Notification noti = Notification.builder()
+                    .receiver(customer)
+                    .type(NotificationType.ORDER_REJECTED)
+                    .title("Đơn hàng #" + orderId + " bị từ chối")
+                    .content(reasonMessage)
+                    .relatedOrderId(null)
+                    .createdAt(LocalDateTime.now())
+                    .readFlag(false)
+                    .build();
+
+            notiRepo.save(noti);
+        } catch (Exception ex) {
+            log.error("Lỗi khi gửi thông báo cho customer: " + ex.getMessage());
+        }
+    }
+
 }

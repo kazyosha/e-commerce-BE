@@ -44,6 +44,7 @@ public class OrderController {
     }
 
     @GetMapping("/all")
+    @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<?> getAll() {
         Long customerId = orderService.getCustomerIdByUsername(
                 SecurityContextHolder.getContext().getAuthentication().getName()
@@ -130,4 +131,14 @@ public class OrderController {
         List<OrderResponse> result = orderService.getCancellableOrdersOfCustomer(customerId);
         return ResponseEntity.ok(result);
     }
+
+    @GetMapping("/rejected")
+    public ResponseEntity<?> getRejectedOrders() {
+
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        Long customerId = orderService.getCustomerIdByUsername(username);
+
+        return ResponseEntity.ok(orderService.getRejectedOrdersOfCustomer(customerId));
+    }
+
 }

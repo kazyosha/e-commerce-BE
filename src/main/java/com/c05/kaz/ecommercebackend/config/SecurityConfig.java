@@ -68,14 +68,13 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "HR")
 
                         // Roles SUPPLIER
-                        .requestMatchers("/api/suppliers/me/**").hasRole("SUPPLIER")
+                        .requestMatchers("/api/suppliers/**").hasRole("SUPPLIER")
 
                         // Roles CUSTOMER
                         .requestMatchers("/api/customers/**", "/api/cart/**", "/api/orders/**")
                         .hasRole("CUSTOMER")
 
                         // Require login
-                        .requestMatchers("/api/supplier/**").authenticated()
                         .requestMatchers("/api/authentic/**").authenticated()
                         .requestMatchers("/api/notifications/**").authenticated()
 
