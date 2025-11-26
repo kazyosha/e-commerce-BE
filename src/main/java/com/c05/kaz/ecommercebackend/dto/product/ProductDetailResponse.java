@@ -24,5 +24,9 @@ public class ProductDetailResponse {
     private Long supplierId;
     private String supplierName;
 
+    private String supplierAvatar;
+    private String supplierDescription;
+    private String supplierAddress;
+
     private List<String> images; // list URL ảnh
 }

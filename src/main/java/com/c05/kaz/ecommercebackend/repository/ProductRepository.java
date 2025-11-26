@@ -161,5 +161,6 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     @Query("SELECT MAX(p.supplierProductIndex) FROM Product p WHERE p.supplier.id = :supplierId")
     Integer findMaxIndexBySupplier(Long supplierId);
 
+    List<Product> findBySupplierId(Long supplierId);
 
 }
