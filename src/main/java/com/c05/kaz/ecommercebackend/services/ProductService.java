@@ -206,13 +206,15 @@ public class ProductService {
                                 : p.getCategories().get(0).getName()
                 )
 
-
                 // *** SỬA ĐÚNG Ở ĐÂY ***
                 .categoryId(categoryId)
                 .categoryName(categoryName)
 
                 .supplierId(p.getSupplier().getId())
                 .supplierName(p.getSupplier().getShopName())
+                .supplierAvatar(p.getSupplier().getAvatarUrl())
+                .supplierDescription(p.getSupplier().getDescription())
+                .supplierAddress(p.getSupplier().getAddress())
 
                 .images(
                         p.getImages().stream()
@@ -328,6 +330,12 @@ public class ProductService {
         return (s.isEmpty()) ? null : s;
     }
 
-
+    public List<ProductResponse> getBySupplierAll(Long supplierId) {
+        return productRepository.findBySupplierId(supplierId)
+                .stream()
+                .filter(Product::isActive)
+                .map(this::toResponse)
+                .toList();
+    }
 
 }
