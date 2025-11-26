@@ -30,11 +30,23 @@ public class DiscountService {
         SupplierShop supplier = supplierRepository.findById(supplierId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy shop"));
 
-        return discountRepository.findBySupplier(supplier)
-                .stream()
-                .map(this::mapToResponse)
-                .toList();
+        List<Discount> list = discountRepository.findBySupplier(supplier);
+
+        LocalDateTime now = LocalDateTime.now();
+
+        // ⭐ AUTO UPDATE STATUS IF EXPIRED
+        boolean changed = false;
+        for (Discount d : list) {
+            if (d.getStatus() == DiscountStatus.ACTIVE && d.getEndDate().isBefore(now)) {
+                d.setStatus(DiscountStatus.DISABLED);
+                changed = true;
+            }
+        }
+        if (changed) discountRepository.saveAll(list);
+
+        return list.stream().map(this::mapToResponse).toList();
     }
+
 
     // ================================
     // TẠO MÃ GIẢM GIÁ
