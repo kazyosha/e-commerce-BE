@@ -31,7 +31,7 @@ public class Order {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private OrderStatus status; // PENDING, REJECTED, CANCELED, COMPLETED
+    private OrderStatus status;
 
     // ====== Payment info ======
     @Enumerated(EnumType.STRING)
@@ -42,10 +42,10 @@ public class Order {
     private boolean paid;
 
     @Column(length = 100)
-    private String paymentTransactionId; // mã giao dịch phía cổng thanh toán
+    private String paymentTransactionId;
 
     @Column(length = 100)
-    private String bankCode; // nếu gateway trả về bankCode cụ thể
+    private String bankCode;
 
     // ====== Receiver info ======
     @Column(nullable = false, length = 150)
@@ -69,13 +69,12 @@ public class Order {
     @Column(name = "shipping_fee")
     private Long shippingFee;
 
-    @ManyToOne
-    @JoinColumn(name = "promotion_id")
-    private Promotion promotion;
+    // ⭐ Thay cho promotion cũ
+    @Column(name = "discount_code", length = 50)
+    private String discountCode;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
     private Double totalPrice;
 }
-

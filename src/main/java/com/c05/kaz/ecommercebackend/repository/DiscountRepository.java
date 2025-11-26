@@ -16,4 +16,6 @@ public interface DiscountRepository extends JpaRepository<Discount, Long> {
 
     // ⭐ FIELD NÀY TRONG Discount LÀ applicableProducts — KHÔNG PHẢI products
     List<Discount> findByApplicableProductsContains(Product product);
+
+    Optional<Discount> findByCode(String discountCode);
 }

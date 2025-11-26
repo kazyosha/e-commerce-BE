@@ -1,6 +1,7 @@
 package com.c05.kaz.ecommercebackend.services;
 
 import com.c05.kaz.ecommercebackend.dto.product.*;
+import com.c05.kaz.ecommercebackend.dto.supplier.ProductTopResponse;
 import com.c05.kaz.ecommercebackend.entity.Category;
 import com.c05.kaz.ecommercebackend.entity.Product;
 import com.c05.kaz.ecommercebackend.entity.ProductImage;
@@ -206,13 +207,15 @@ public class ProductService {
                                 : p.getCategories().get(0).getName()
                 )
 
-
                 // *** SỬA ĐÚNG Ở ĐÂY ***
                 .categoryId(categoryId)
                 .categoryName(categoryName)
 
                 .supplierId(p.getSupplier().getId())
                 .supplierName(p.getSupplier().getShopName())
+                .supplierAvatar(p.getSupplier().getAvatarUrl())
+                .supplierDescription(p.getSupplier().getDescription())
+                .supplierAddress(p.getSupplier().getAddress())
 
                 .images(
                         p.getImages().stream()
@@ -328,6 +331,25 @@ public class ProductService {
         return (s.isEmpty()) ? null : s;
     }
 
+    public List<ProductResponse> getBySupplierAll(Long supplierId) {
+        return productRepository.findBySupplierId(supplierId)
+                .stream()
+                .filter(Product::isActive)
+                .map(this::toResponse)
+                .toList();
+    }
 
+    public List<ProductTopResponse> getTop5ByShop(Long shopId) {
+        return productRepository.findTop5BySupplierIdOrderBySoldQuantityDesc(shopId)
+                .stream()
+                .map(p -> new ProductTopResponse(
+                        p.getId(),
+                        p.getName(),
+                        p.getPrice(),
+                        p.getEffectiveThumbnail(),
+                        Math.toIntExact(p.getSoldQuantity())
+                ))
+                .toList();
+    }
 
 }

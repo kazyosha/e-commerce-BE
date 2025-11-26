@@ -25,7 +25,7 @@ public class JwtService {
     public String generateToken(UserDetails userDetails, Long userId) {
         return Jwts.builder()
                 .setSubject(userDetails.getUsername())
-                .claim("id", userId)              // ⭐ QUAN TRỌNG: userId cho chat
+                .claim("id", userId)
                 .claim("roles", userDetails.getAuthorities())
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_MS))
