@@ -3,6 +3,7 @@ package com.c05.kaz.ecommercebackend.controller;
 import com.c05.kaz.ecommercebackend.dto.product.AdvancedProductFilterDTO;
 import com.c05.kaz.ecommercebackend.dto.product.ProductResponse;
 import com.c05.kaz.ecommercebackend.dto.product.ProductSimpleResponse;
+import com.c05.kaz.ecommercebackend.dto.supplier.ProductTopResponse;
 import com.c05.kaz.ecommercebackend.entity.Product;
 import com.c05.kaz.ecommercebackend.services.ProductService;
 import lombok.RequiredArgsConstructor;
@@ -116,6 +117,10 @@ public class ProductController {
     @GetMapping("/supplier/{supplierId}")
     public ResponseEntity<List<ProductResponse>> getProductsBySupplier(@PathVariable Long supplierId) {
         return ResponseEntity.ok(productService.getBySupplierAll(supplierId));
+    }
+    @GetMapping("/{id}/top-products")
+    public List<ProductTopResponse> getTop5Products(@PathVariable Long id) {
+        return productService.getTop5ByShop(id);
     }
 
 
