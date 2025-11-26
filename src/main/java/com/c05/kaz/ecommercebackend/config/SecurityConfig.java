@@ -79,7 +79,13 @@ public class SecurityConfig {
                         .requestMatchers("/api/authentic/**").authenticated()
                         .requestMatchers("/api/notifications/**").authenticated()
                         .requestMatchers("/api/chat/**").authenticated()
-                        .requestMatchers("/ws/**").permitAll()
+                        .requestMatchers(
+                                "/ws/**",
+                                "/info/**",
+                                "/sockjs-node/**",
+                                "/topic/**",
+                                "/app/**"
+                        ).permitAll()
 
                         // Tất cả còn lại cần JWT
                         .anyRequest().authenticated()
@@ -93,10 +99,14 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
 
-        config.setAllowedOrigins(List.of("*"));
+        // FE domain
+        config.setAllowedOrigins(List.of("http://localhost:8081"));
+        config.setAllowedOriginPatterns(List.of("http://localhost:8081"));
+
+        config.setAllowCredentials(true);  // SockJS cần cái này
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
-        config.setAllowCredentials(false);
+        config.setExposedHeaders(List.of("*"));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);

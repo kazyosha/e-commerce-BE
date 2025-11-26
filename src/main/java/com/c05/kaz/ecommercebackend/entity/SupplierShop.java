@@ -3,6 +3,7 @@ package com.c05.kaz.ecommercebackend.entity;
 import com.c05.kaz.ecommercebackend.enums.SupplierStatus;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

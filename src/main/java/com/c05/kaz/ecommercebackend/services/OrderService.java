@@ -37,10 +37,8 @@ public class OrderService {
         List<Order> draftOrders = orderBuilderService.buildDraftOrders(req);
         UserAccount user = orderBuilderService.getCurrentUser();
 
-        // giỏ hàng (nếu có)
         Cart cart = cartRepo.findByCustomer(user).orElse(null);
 
-        // cart item cần xoá
         List<Long> cartItemIdsToRemove = req.getItems().stream()
                 .map(CheckoutItemRequest::getCartItemId)
                 .filter(Objects::nonNull)
@@ -52,7 +50,24 @@ public class OrderService {
             order.setStatus(OrderStatus.PENDING);
             order = orderRepo.save(order);
 
-            // Notify
+            Long supplierId = order.getSupplier().getId();
+            Long customerId = order.getCustomer().getId();
+
+            // 🔥 PUSH REALTIME — SUPPLIER NHẬN ĐƠN MỚI
+            notificationService.pushOrderStatusToSupplier(
+                    supplierId,
+                    order.getId(),
+                    "PENDING"
+            );
+
+            // 🔥 PUSH REALTIME — CUSTOMER CẬP NHẬT TÌNH TRẠNG
+            notificationService.pushOrderStatusToCustomer(
+                    customerId,
+                    order.getId(),
+                    "PENDING"
+            );
+
+            // 🔔 Gửi notification như cũ
             notificationService.notifyOrderCreatedForSupplier(
                     order.getSupplier(),
                     user,
@@ -65,7 +80,7 @@ public class OrderService {
             responses.add(buildOrderSummary(order));
         }
 
-        // xoá cart items
+        // XÓA CART
         if (cart != null && !cartItemIdsToRemove.isEmpty()) {
             cart.getItems().removeIf(ci -> cartItemIdsToRemove.contains(ci.getId()));
             cartItemRepo.deleteAllByIdInBatch(cartItemIdsToRemove);
@@ -163,19 +178,19 @@ public class OrderService {
 
         Order order = orderRepo.findByIdAndCustomer_Id(orderId, customerId)
                 .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Không tìm thấy đơn hàng"));
+                        HttpStatus.NOT_FOUND, "Không tìm thấy đơn"));
 
         if (order.getStatus() != OrderStatus.SHIPPING) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Chỉ xác nhận đơn SHIPPED");
+                    "Chỉ xác nhận đơn SHIPPING");
         }
 
         order.setStatus(OrderStatus.COMPLETED);
         order.setPaid(true);
         order.setUpdatedAt(LocalDateTime.now());
 
-        // tăng sold khi hoàn tất
+        // tăng sold
         for (OrderItem oi : order.getItems()) {
             Product p = oi.getProduct();
             long sold = Optional.ofNullable(p.getSoldQuantity()).orElse(0L);
@@ -184,6 +199,14 @@ public class OrderService {
         }
 
         Order saved = orderRepo.save(order);
+
+        // 🔥 REALTIME
+        notificationService.pushOrderStatusToSupplier(
+                order.getSupplier().getId(), orderId, "COMPLETED"
+        );
+        notificationService.pushOrderStatusToCustomer(
+                customerId, orderId, "COMPLETED"
+        );
 
         notificationService.notifyOrderCompletedForSupplier(
                 order.getSupplier(), orderId, order.getCustomer().getUser()
@@ -206,60 +229,42 @@ public class OrderService {
 
         Order order = orderRepo.findByIdAndCustomer_Id(orderId, customerId)
                 .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Không tìm thấy đơn hàng"));
+                        HttpStatus.NOT_FOUND, "Không tìm thấy đơn"));
 
-        if (order.getStatus() == OrderStatus.CANCELLED)
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Đơn đã huỷ");
-
-        if (order.getStatus() == OrderStatus.SHIPPING ||
+        if (order.getStatus() == OrderStatus.CANCELLED ||
+                order.getStatus() == OrderStatus.SHIPPING ||
                 order.getStatus() == OrderStatus.COMPLETED) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Không thể hủy đơn ở trạng thái hiện tại");
+                    "Không thể huỷ đơn ở trạng thái này");
         }
 
-        // PENDING → chỉ đổi trạng thái
-        if (order.getStatus() == OrderStatus.PENDING) {
-            order.setStatus(OrderStatus.CANCELLED);
-            return OrderResponse.fromEntity(orderRepo.save(order));
-        }
-
-        // CONFIRMED → rollback stock + sold
+        // rollback stock nếu CONFIRMED
         if (order.getStatus() == OrderStatus.CONFIRMED) {
-
             for (OrderItem oi : order.getItems()) {
                 Product p = oi.getProduct();
-
-                // hoàn tồn
-                p.setQuantity(
-                        Optional.ofNullable(p.getQuantity()).orElse(0)
-                                + oi.getQuantity()
-                );
-
-                // rollback sold (nếu shop đã cộng nhầm lúc trước)
-                long sold = Optional.ofNullable(p.getSoldQuantity()).orElse(0L);
-                long newSold = sold - oi.getQuantity();
-                p.setSoldQuantity(Math.max(newSold, 0));
-
+                p.setQuantity(p.getQuantity() + oi.getQuantity());
                 productRepo.save(p);
             }
-
-            order.setStatus(OrderStatus.CANCELLED);
-            Order saved = orderRepo.save(order);
-
-            notificationService.notifyOrderCancelledForSupplier(order.getSupplier(), orderId);
-
-            return OrderResponse.fromEntity(saved);
         }
 
-        throw new ResponseStatusException(
-                HttpStatus.BAD_REQUEST,
-                "Không thể huỷ đơn");
+        order.setStatus(OrderStatus.CANCELLED);
+        Order saved = orderRepo.save(order);
+
+        // 🔥 REALTIME
+        notificationService.pushOrderStatusToSupplier(
+                order.getSupplier().getId(), orderId, "CANCELLED"
+        );
+        notificationService.pushOrderStatusToCustomer(
+                customerId, orderId, "CANCELLED"
+        );
+
+        notificationService.notifyOrderCancelledForSupplier(order.getSupplier(), orderId);
+
+        return OrderResponse.fromEntity(saved);
     }
 
     // ====== SUPPLIER SIDE ======
-
-    // Shop xác nhận đơn: PENDING → CONFIRMED
     @Transactional
     public OrderResponse supplierConfirmOrder(Long supplierId, Long orderId) {
         Order order = orderRepo.findByIdAndSupplier_Id(orderId, supplierId)
@@ -267,22 +272,19 @@ public class OrderService {
                         HttpStatus.NOT_FOUND, "Không tìm thấy đơn hàng"));
 
         if (order.getStatus() != OrderStatus.PENDING) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Chỉ xác nhận đơn ở trạng thái PENDING");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Chỉ xác nhận đơn PENDING");
         }
 
-        // Trừ tồn kho ngay khi shop xác nhận
+        // trừ tồn kho
         for (OrderItem oi : order.getItems()) {
             Product p = oi.getProduct();
-
             int stock = Optional.ofNullable(p.getQuantity()).orElse(0);
             if (stock < oi.getQuantity()) {
                 throw new ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
                         "Sản phẩm " + p.getName() + " không đủ tồn kho");
             }
-
             p.setQuantity(stock - oi.getQuantity());
             productRepo.save(p);
         }
@@ -290,10 +292,17 @@ public class OrderService {
         order.setStatus(OrderStatus.CONFIRMED);
         Order saved = orderRepo.save(order);
 
-        // notify khách
+        // 🔥 REALTIME
+        notificationService.pushOrderStatusToCustomer(
+                order.getCustomer().getId(), orderId, "CONFIRMED"
+        );
+        notificationService.pushOrderStatusToSupplier(
+                supplierId, orderId, "CONFIRMED"
+        );
+
+        // thông báo bình thường
         notificationService.notifyOrderConfirmedForCustomer(
-                order.getCustomer().getUser(),
-                order.getId()
+                order.getCustomer().getUser(), orderId
         );
 
         return OrderResponse.fromEntity(saved);
@@ -302,9 +311,10 @@ public class OrderService {
     // Shop đánh dấu đang giao: CONFIRMED → SHIPPING
     @Transactional
     public OrderResponse supplierMarkShipping(Long supplierId, Long orderId) {
+
         Order order = orderRepo.findByIdAndSupplier_Id(orderId, supplierId)
                 .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Không tìm thấy đơn hàng"));
+                        HttpStatus.NOT_FOUND, "Không tìm thấy đơn"));
 
         if (order.getStatus() != OrderStatus.CONFIRMED) {
             throw new ResponseStatusException(
@@ -314,6 +324,14 @@ public class OrderService {
 
         order.setStatus(OrderStatus.SHIPPING);
         Order saved = orderRepo.save(order);
+
+        // 🔥 REALTIME
+        notificationService.pushOrderStatusToCustomer(
+                order.getCustomer().getId(), orderId, "SHIPPING"
+        );
+        notificationService.pushOrderStatusToSupplier(
+                supplierId, orderId, "SHIPPING"
+        );
 
         notificationService.notifyOrderShippingForCustomer(
                 order.getCustomer().getUser(), orderId
@@ -358,36 +376,25 @@ public class OrderService {
     @Transactional
     public OrderResponse supplierRejectOrder(Long orderId, SupplierRejectRequest req) {
 
-        // 🔥 LẤY USER SUPPLIER (KHÔNG DÙNG getCurrentCustomer)
-        UserAccount currentSupplier = orderBuilderService.getCurrentUser();
+        UserAccount supplier = orderBuilderService.getCurrentUser();
 
-        // Lấy đơn hàng
         Order order = orderRepo.findById(orderId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Không tìm thấy đơn"));
 
-        // 🔥 CHECK QUYỀN: SUPPLIER.CHÍNH CHỦ
-        Long supplierUserId = order.getSupplier().getUser().getId();
-        Long currentUserId = currentSupplier.getId();
-
-        if (!supplierUserId.equals(currentUserId)) {
-            throw new ResponseStatusException(
-                    HttpStatus.FORBIDDEN,
-                    "Bạn không có quyền từ chối đơn này"
-            );
+        if (!order.getSupplier().getUser().getId().equals(supplier.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Bạn không có quyền từ chối đơn này");
         }
 
-
-        // 🔥 CHỈ CHO TỪ CHỐI KHI PENDING HOẶC CONFIRMED
         if (!(order.getStatus() == OrderStatus.PENDING ||
                 order.getStatus() == OrderStatus.CONFIRMED)) {
-
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Không thể từ chối đơn ở trạng thái hiện tại");
+                    "Không thể từ chối đơn ở trạng thái này");
         }
 
-        // 🔥 ROLLBACK STOCK nếu đơn đã xác nhận
+        // rollback stock nếu đã xác nhận
         if (order.getStatus() == OrderStatus.CONFIRMED) {
             for (OrderItem item : order.getItems()) {
                 Product p = item.getProduct();
@@ -396,21 +403,22 @@ public class OrderService {
             }
         }
 
-        // 🔥 Cập nhật trạng thái đơn
         order.setStatus(OrderStatus.REJECTED);
         order.setUpdatedAt(LocalDateTime.now());
-
         Order saved = orderRepo.save(order);
 
-        // 🔥 Gửi thông báo cho khách
-        String message =
-                "Đơn hàng #" + orderId + " đã bị từ chối bởi nhà cung cấp.\n\n"
-                        + "Lý do: " + req.getReason();
+        // 🔥 REALTIME
+        notificationService.pushOrderStatusToCustomer(
+                order.getCustomer().getId(), orderId, "REJECTED"
+        );
+        notificationService.pushOrderStatusToSupplier(
+                order.getSupplier().getId(), orderId, "REJECTED"
+        );
 
         notificationService.notifyOrderRejectedForCustomer(
                 order.getCustomer().getUser(),
                 orderId,
-                message
+                "Lý do từ chối: " + req.getReason()
         );
 
         return OrderResponse.fromEntity(saved);
