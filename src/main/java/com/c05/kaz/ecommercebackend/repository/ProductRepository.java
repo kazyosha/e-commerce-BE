@@ -162,5 +162,6 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     Integer findMaxIndexBySupplier(Long supplierId);
 
     List<Product> findBySupplierId(Long supplierId);
+    List<Product> findTop5BySupplierIdOrderBySoldQuantityDesc(Long supplierId);
 
 }

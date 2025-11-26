@@ -1,6 +1,7 @@
 package com.c05.kaz.ecommercebackend.services;
 
 import com.c05.kaz.ecommercebackend.dto.product.*;
+import com.c05.kaz.ecommercebackend.dto.supplier.ProductTopResponse;
 import com.c05.kaz.ecommercebackend.entity.Category;
 import com.c05.kaz.ecommercebackend.entity.Product;
 import com.c05.kaz.ecommercebackend.entity.ProductImage;
@@ -335,6 +336,19 @@ public class ProductService {
                 .stream()
                 .filter(Product::isActive)
                 .map(this::toResponse)
+                .toList();
+    }
+
+    public List<ProductTopResponse> getTop5ByShop(Long shopId) {
+        return productRepository.findTop5BySupplierIdOrderBySoldQuantityDesc(shopId)
+                .stream()
+                .map(p -> new ProductTopResponse(
+                        p.getId(),
+                        p.getName(),
+                        p.getPrice(),
+                        p.getEffectiveThumbnail(),
+                        Math.toIntExact(p.getSoldQuantity())
+                ))
                 .toList();
     }
 
