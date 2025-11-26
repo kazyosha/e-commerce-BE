@@ -13,10 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -30,6 +27,10 @@ public class OrderService {
     private final CustomerRepository customerRepository;
     private final NotificationService notificationService;
 
+    // ⭐ THÊM 2 REPOSITORY ĐỂ GHI LOG & TĂNG USEDCOUNT
+    private final DiscountRepository discountRepository;
+    private final DiscountUsageLogRepository discountUsageLogRepository;
+
     @Transactional
     public List<OrderSummaryResponse> checkout(CheckoutRequest req) {
 
@@ -37,10 +38,8 @@ public class OrderService {
         List<Order> draftOrders = orderBuilderService.buildDraftOrders(req);
         UserAccount user = orderBuilderService.getCurrentUser();
 
-        // giỏ hàng (nếu có)
         Cart cart = cartRepo.findByCustomer(user).orElse(null);
 
-        // cart item cần xoá
         List<Long> cartItemIdsToRemove = req.getItems().stream()
                 .map(CheckoutItemRequest::getCartItemId)
                 .filter(Objects::nonNull)
@@ -51,6 +50,29 @@ public class OrderService {
         for (Order order : draftOrders) {
             order.setStatus(OrderStatus.PENDING);
             order = orderRepo.save(order);
+
+            // ⭐ TĂNG LƯỢT SỬ DỤNG MÃ GIẢM GIÁ
+            if (req.getDiscountCode() != null && !req.getDiscountCode().isBlank()) {
+
+                Discount discount = discountRepository
+                        .findByCodeAndSupplier(req.getDiscountCode(), order.getSupplier())
+                        .orElse(null);
+
+                if (discount != null) {
+                    // Tăng usedCount
+                    discount.setUsedCount(discount.getUsedCount() + 1);
+                    discountRepository.save(discount);
+
+                    // Ghi log
+                    DiscountUsageLog log = DiscountUsageLog.builder()
+                            .discount(discount)
+                            .user(user)
+                            .usedAt(LocalDateTime.now())
+                            .build();
+
+                    discountUsageLogRepository.save(log);
+                }
+            }
 
             // Notify
             notificationService.notifyOrderCreatedForSupplier(
@@ -115,7 +137,6 @@ public class OrderService {
 
     // ====== CUSTOMER SIDE ======
 
-    // Lấy id customer từ username trong token
     public Long getCustomerIdByUsername(String username) {
         CustomerProfile customer = customerRepository.findByUser_Username(username)
                 .orElseThrow(() ->
@@ -131,33 +152,28 @@ public class OrderService {
                 .toList();
     }
 
-    // Danh sách đơn đã thanh toán (nếu em vẫn dùng field paid + COMPLETED)
     public List<OrderResponse> getPaidOrdersOfCustomer(Long customerId) {
         List<Order> orders =
                 orderRepo.findByCustomer_IdAndStatusAndPaidTrueOrderByCreatedAtDesc(
                         customerId,
                         OrderStatus.COMPLETED
                 );
-
         return orders.stream()
                 .map(OrderResponse::fromEntity)
                 .toList();
     }
 
-    // Danh sách đơn đang giao (SHIPPING)
     public List<OrderResponse> getShippingOrdersOfCustomer(Long customerId) {
         List<Order> orders =
                 orderRepo.findByCustomer_IdAndStatusOrderByCreatedAtDesc(
                         customerId,
                         OrderStatus.SHIPPING
                 );
-
         return orders.stream()
                 .map(OrderResponse::fromEntity)
                 .toList();
     }
 
-    // Khách xác nhận đã nhận hàng → SHIPPING -> COMPLETED
     @Transactional
     public OrderResponse confirmReceived(Long customerId, Long orderId) {
 
@@ -175,7 +191,6 @@ public class OrderService {
         order.setPaid(true);
         order.setUpdatedAt(LocalDateTime.now());
 
-        // tăng sold khi hoàn tất
         for (OrderItem oi : order.getItems()) {
             Product p = oi.getProduct();
             long sold = Optional.ofNullable(p.getSoldQuantity()).orElse(0L);
@@ -200,7 +215,6 @@ public class OrderService {
         return OrderDetailResponse.fromEntity(order);
     }
 
-    // Khách huỷ đơn
     @Transactional
     public OrderResponse cancelOrder(Long customerId, Long orderId) {
 
@@ -218,25 +232,21 @@ public class OrderService {
                     "Không thể hủy đơn ở trạng thái hiện tại");
         }
 
-        // PENDING → chỉ đổi trạng thái
         if (order.getStatus() == OrderStatus.PENDING) {
             order.setStatus(OrderStatus.CANCELLED);
             return OrderResponse.fromEntity(orderRepo.save(order));
         }
 
-        // CONFIRMED → rollback stock + sold
         if (order.getStatus() == OrderStatus.CONFIRMED) {
 
             for (OrderItem oi : order.getItems()) {
                 Product p = oi.getProduct();
 
-                // hoàn tồn
                 p.setQuantity(
                         Optional.ofNullable(p.getQuantity()).orElse(0)
                                 + oi.getQuantity()
                 );
 
-                // rollback sold (nếu shop đã cộng nhầm lúc trước)
                 long sold = Optional.ofNullable(p.getSoldQuantity()).orElse(0L);
                 long newSold = sold - oi.getQuantity();
                 p.setSoldQuantity(Math.max(newSold, 0));
@@ -257,9 +267,8 @@ public class OrderService {
                 "Không thể huỷ đơn");
     }
 
-    // ====== SUPPLIER SIDE ======
+    // ===== SUPPLIER SIDE =====
 
-    // Shop xác nhận đơn: PENDING → CONFIRMED
     @Transactional
     public OrderResponse supplierConfirmOrder(Long supplierId, Long orderId) {
         Order order = orderRepo.findByIdAndSupplier_Id(orderId, supplierId)
@@ -272,7 +281,6 @@ public class OrderService {
                     "Chỉ xác nhận đơn ở trạng thái PENDING");
         }
 
-        // Trừ tồn kho ngay khi shop xác nhận
         for (OrderItem oi : order.getItems()) {
             Product p = oi.getProduct();
 
@@ -290,7 +298,6 @@ public class OrderService {
         order.setStatus(OrderStatus.CONFIRMED);
         Order saved = orderRepo.save(order);
 
-        // notify khách
         notificationService.notifyOrderConfirmedForCustomer(
                 order.getCustomer().getUser(),
                 order.getId()
@@ -299,7 +306,6 @@ public class OrderService {
         return OrderResponse.fromEntity(saved);
     }
 
-    // Shop đánh dấu đang giao: CONFIRMED → SHIPPING
     @Transactional
     public OrderResponse supplierMarkShipping(Long supplierId, Long orderId) {
         Order order = orderRepo.findByIdAndSupplier_Id(orderId, supplierId)
@@ -323,7 +329,6 @@ public class OrderService {
     }
 
     public List<OrderResponse> getCancellableOrdersOfCustomer(Long customerId) {
-        // Các trạng thái còn được phép huỷ
         var cancellableStatuses = List.of(
                 OrderStatus.PENDING,
                 OrderStatus.CONFIRMED
@@ -358,15 +363,12 @@ public class OrderService {
     @Transactional
     public OrderResponse supplierRejectOrder(Long orderId, SupplierRejectRequest req) {
 
-        // 🔥 LẤY USER SUPPLIER (KHÔNG DÙNG getCurrentCustomer)
         UserAccount currentSupplier = orderBuilderService.getCurrentUser();
 
-        // Lấy đơn hàng
         Order order = orderRepo.findById(orderId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Không tìm thấy đơn"));
 
-        // 🔥 CHECK QUYỀN: SUPPLIER.CHÍNH CHỦ
         Long supplierUserId = order.getSupplier().getUser().getId();
         Long currentUserId = currentSupplier.getId();
 
@@ -377,8 +379,6 @@ public class OrderService {
             );
         }
 
-
-        // 🔥 CHỈ CHO TỪ CHỐI KHI PENDING HOẶC CONFIRMED
         if (!(order.getStatus() == OrderStatus.PENDING ||
                 order.getStatus() == OrderStatus.CONFIRMED)) {
 
@@ -387,7 +387,6 @@ public class OrderService {
                     "Không thể từ chối đơn ở trạng thái hiện tại");
         }
 
-        // 🔥 ROLLBACK STOCK nếu đơn đã xác nhận
         if (order.getStatus() == OrderStatus.CONFIRMED) {
             for (OrderItem item : order.getItems()) {
                 Product p = item.getProduct();
@@ -396,13 +395,11 @@ public class OrderService {
             }
         }
 
-        // 🔥 Cập nhật trạng thái đơn
         order.setStatus(OrderStatus.REJECTED);
         order.setUpdatedAt(LocalDateTime.now());
 
         Order saved = orderRepo.save(order);
 
-        // 🔥 Gửi thông báo cho khách
         String message =
                 "Đơn hàng #" + orderId + " đã bị từ chối bởi nhà cung cấp.\n\n"
                         + "Lý do: " + req.getReason();
@@ -428,5 +425,4 @@ public class OrderService {
                 .map(OrderResponse::fromEntity)
                 .toList();
     }
-
 }

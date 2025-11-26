@@ -1,5 +1,7 @@
 package com.c05.kaz.ecommercebackend.services;
 
+import com.c05.kaz.ecommercebackend.dto.discount.DiscountCheckRequest;
+import com.c05.kaz.ecommercebackend.dto.discount.DiscountCheckResponse;
 import com.c05.kaz.ecommercebackend.dto.order.CheckoutItemRequest;
 import com.c05.kaz.ecommercebackend.dto.order.CheckoutRequest;
 import com.c05.kaz.ecommercebackend.entity.*;
@@ -18,10 +20,10 @@ import java.util.*;
 public class OrderBuilderService {
 
     private final CartRepository cartRepo;
-    private final ProductRepository productRepo; // hỗ trợ BUY NOW
+    private final ProductRepository productRepo;
     private final UserAccountService userAccountService;
     private final CustomerProfileService customerProfileService;
-    private final PromotionService promotionService;
+    private final DiscountService discountService;
 
     public List<Order> buildDraftOrders(CheckoutRequest req) {
 
@@ -36,17 +38,14 @@ public class OrderBuilderService {
 
         Map<SupplierShop, List<ProductSelection>> itemsBySupplier = new HashMap<>();
 
+        // Gom sản phẩm theo supplier
         for (CheckoutItemRequest itemReq : req.getItems()) {
 
             Product product;
             int reqQty;
 
-            // --- Checkout từ giỏ ---
             if (itemReq.getCartItemId() != null) {
-
-                if (cart == null || cart.getItems() == null || cart.getItems().isEmpty()) {
-                    throw new RuntimeException("Giỏ hàng rỗng.");
-                }
+                if (cart == null) throw new RuntimeException("Giỏ hàng rỗng.");
 
                 CartItem ci = cart.getItems().stream()
                         .filter(c -> Objects.equals(c.getId(), itemReq.getCartItemId()))
@@ -55,44 +54,34 @@ public class OrderBuilderService {
 
                 product = ci.getProduct();
                 reqQty = itemReq.getQuantity() != null ? itemReq.getQuantity() : ci.getQuantity();
-
             }
-            // --- BUY NOW ---
             else if (itemReq.getProductId() != null) {
-
                 product = productRepo.findById(itemReq.getProductId())
                         .orElseThrow(() -> new RuntimeException("Sản phẩm không tồn tại."));
+
                 reqQty = itemReq.getQuantity() != null ? itemReq.getQuantity() : 1;
             }
             else {
                 throw new RuntimeException("Thiếu cartItemId hoặc productId.");
             }
 
-            // Validate chung
             if (reqQty <= 0) throw new RuntimeException("Số lượng phải lớn hơn 0.");
-            if (!product.isActive()) throw new RuntimeException("Sản phẩm " + product.getName() + " đang ngừng bán.");
-            if ((product.getQuantity() == null ? 0 : product.getQuantity()) < reqQty) {
+            if (!product.isActive()) throw new RuntimeException("Sản phẩm đang ngừng bán.");
+            if (product.getQuantity() < reqQty) {
                 throw new RuntimeException("Sản phẩm " + product.getName() + " không đủ tồn kho.");
             }
 
             SupplierShop supplier = product.getSupplier();
-            if (supplier == null) {
-                throw new RuntimeException("Sản phẩm " + product.getName() + " không thuộc cửa hàng nào.");
-            }
 
             itemsBySupplier
                     .computeIfAbsent(supplier, k -> new ArrayList<>())
                     .add(new ProductSelection(product, reqQty));
         }
 
-        if (itemsBySupplier.isEmpty()) {
-            throw new RuntimeException("Không tìm thấy sản phẩm để tạo đơn.");
-        }
-
-        // ===== BUILD ORDER THEO MỖI SUPPLIER =====
         List<Order> draftOrders = new ArrayList<>();
         LocalDateTime now = LocalDateTime.now();
 
+        // Build đơn hàng
         for (Map.Entry<SupplierShop, List<ProductSelection>> entry : itemsBySupplier.entrySet()) {
 
             SupplierShop supplier = entry.getKey();
@@ -103,7 +92,6 @@ public class OrderBuilderService {
             order.setCustomer(customer);
             order.setStatus(OrderStatus.PENDING);
 
-            // 💥 GÁN SHIPPING FEE (FE gửi lên)
             long shippingFee = req.getShippingFee() != null ? req.getShippingFee() : 0L;
             order.setShippingFee(shippingFee);
 
@@ -111,7 +99,6 @@ public class OrderBuilderService {
                     req.getPaymentMethod() != null ? req.getPaymentMethod() : PaymentMethod.COD
             );
 
-            // Receiver Info
             order.setReceiverName(
                     req.getReceiverName() != null && !req.getReceiverName().isBlank()
                             ? req.getReceiverName()
@@ -135,8 +122,8 @@ public class OrderBuilderService {
 
             List<OrderItem> orderItems = new ArrayList<>();
             long originalTotal = 0L;
+            List<Long> productIds = new ArrayList<>();
 
-            // Tính tổng tiền sản phẩm
             for (ProductSelection ps : selections) {
                 Product product = ps.product;
                 int qty = ps.quantity;
@@ -145,37 +132,44 @@ public class OrderBuilderService {
                 long lineTotal = unitPrice * qty;
 
                 originalTotal += lineTotal;
+                productIds.add(product.getId());
 
-                OrderItem oi = OrderItem.builder()
-                        .order(order)
-                        .product(product)
-                        .supplier(product.getSupplier())
-                        .unitPrice(unitPrice)
-                        .quantity(qty)
-                        .lineTotal(lineTotal)
-                        .build();
-
-                orderItems.add(oi);
-            }
-
-            // Áp mã giảm giá
-            long discountAmount = 0L;
-            Promotion appliedPromotion = null;
-
-            if (req.getPromotionCode() != null && !req.getPromotionCode().isBlank()) {
-                appliedPromotion = promotionService.validateAndGetPromotion(
-                        req.getPromotionCode(),
-                        supplier.getId(),
-                        originalTotal
+                orderItems.add(
+                        OrderItem.builder()
+                                .order(order)
+                                .product(product)
+                                .supplier(product.getSupplier())
+                                .unitPrice(unitPrice)
+                                .quantity(qty)
+                                .lineTotal(lineTotal)
+                                .build()
                 );
-
-                if (appliedPromotion != null) {
-                    discountAmount = promotionService.calculateDiscount(appliedPromotion, originalTotal);
-                    order.setPromotion(appliedPromotion);
-                }
             }
 
-            // ⭐⭐⭐ CỘNG SHIPPING FEE VÀO FINAL TOTAL ⭐⭐⭐
+            // =========== APPLY DISCOUNT ==============
+            long discountAmount = 0L;
+
+            if (req.getDiscountCode() != null && !req.getDiscountCode().isBlank()) {
+
+                DiscountCheckRequest check = new DiscountCheckRequest();
+                check.setSupplierId(supplier.getId());
+                check.setCode(req.getDiscountCode());
+                check.setCartTotal(originalTotal);
+                check.setProductIds(productIds);
+                check.setUserId(user.getId());
+
+                DiscountCheckResponse res = discountService.checkDiscountForCart(check);
+
+                if (!res.isValid()) {
+                    throw new RuntimeException(res.getReason());
+                }
+
+                discountAmount = res.getDiscountAmount();
+
+                // ⭐ LƯU discountCode vào đơn hàng để OrderService tăng usedCount
+                order.setDiscountCode(req.getDiscountCode());
+            }
+
             long finalTotal = originalTotal - discountAmount + shippingFee;
 
             order.setOriginalTotal(originalTotal);
@@ -193,9 +187,6 @@ public class OrderBuilderService {
         return userAccountService.getCurrentCustomer();
     }
 
-    /**
-     * Helper nội bộ
-     */
     private static class ProductSelection {
         private final Product product;
         private final int quantity;
