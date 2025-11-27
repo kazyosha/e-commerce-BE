@@ -80,31 +80,34 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     boolean hasPurchasedProduct(Long customerId, Long productId);
 
     @Query("""
-        SELECT 
-            o.supplier.id AS supplierId,
-            o.supplier.shopName AS shopName,
-            COUNT(o.id) AS totalOrders,
-            SUM(o.finalTotal) AS totalRevenue
-        FROM Order o
-        WHERE o.supplier.id = :supplierId
-          AND o.status = com.c05.kaz.ecommercebackend.enums.OrderStatus.COMPLETED
-        GROUP BY o.supplier.id, o.supplier.shopName
-    """)
+SELECT 
+    o.supplier.id AS supplierId,
+    o.supplier.shopName AS shopName,
+    COUNT(o.id) AS totalOrders,
+    COALESCE(SUM(o.originalTotal), 0) AS originalTotal,
+    COALESCE(SUM(o.discountAmount), 0) AS totalDiscount
+FROM Order o
+WHERE o.supplier.id = :supplierId
+  AND o.status = com.c05.kaz.ecommercebackend.enums.OrderStatus.COMPLETED
+GROUP BY o.supplier.id, o.supplier.shopName
+""")
     List<Object[]> getRevenueBySupplier(Long supplierId);
 
 
+
     @Query("""
-    SELECT 
-        s.id AS supplierId,
-        s.shopName AS shopName,
-        COUNT(o.id) AS totalOrders,
-        COALESCE(SUM(o.finalTotal), 0) AS totalRevenue
-    FROM SupplierShop s
-    LEFT JOIN Order o
-        ON o.supplier.id = s.id
-        AND o.status = com.c05.kaz.ecommercebackend.enums.OrderStatus.COMPLETED
-    GROUP BY s.id, s.shopName
-    ORDER BY s.id ASC
+SELECT 
+    s.id AS supplierId,
+    s.shopName AS shopName,
+    COUNT(o.id) AS totalOrders,
+    COALESCE(SUM(o.originalTotal), 0) AS originalTotal,
+    COALESCE(SUM(o.discountAmount), 0) AS totalDiscount
+FROM SupplierShop s
+LEFT JOIN Order o
+    ON o.supplier.id = s.id
+    AND o.status = com.c05.kaz.ecommercebackend.enums.OrderStatus.COMPLETED
+GROUP BY s.id, s.shopName
+ORDER BY s.id ASC
 """)
     List<Object[]> getAllSuppliersRevenue();
 
@@ -112,7 +115,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @Query("""
     SELECT 
         MONTH(o.createdAt) AS month,
-        SUM(o.finalTotal) AS revenue
+                    SUM(o.finalTotal - COALESCE(o.shippingFee, 0)) AS revenue
     FROM Order o
     WHERE o.status = com.c05.kaz.ecommercebackend.enums.OrderStatus.COMPLETED
       AND YEAR(o.createdAt) = :year
