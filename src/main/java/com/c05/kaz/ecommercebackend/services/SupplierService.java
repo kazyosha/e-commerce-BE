@@ -22,28 +22,42 @@ public class SupplierService {
     private final OrderRepository orderRepository;
 
     /* ==============================================
-       LẤY DOANH THU 1 SUPPLIER
+       LẤY DOANH THU 1 SUPPLIER (KHÔNG DISCOUNT)
     ============================================== */
     public SupplierRevenueDTO getRevenueBySupplier(Long supplierId) {
+
         List<Object[]> raw = orderRepository.getRevenueBySupplier(supplierId);
 
         if (raw.isEmpty()) {
-            return new SupplierRevenueDTO(supplierId, "Unknown", 0L, 0L);
+            return new SupplierRevenueDTO(
+                    supplierId, "Unknown", 0L,
+                    0L, 0L, 0L, 0L
+            );
         }
 
         Object[] row = raw.get(0);
 
+        Long totalOrders = ((Number) row[2]).longValue();
+        Long originalTotal = ((Number) row[3]).longValue();
+        Long discount = ((Number) row[4]).longValue();   // ⭐ totalDiscount từ DB
+
+        Long websiteFee = Math.round(originalTotal * 0.05); // 5%
+
+        Long storeRevenue = originalTotal - websiteFee - discount; // ⭐ TRỪ DISCOUNT
+
         return new SupplierRevenueDTO(
                 ((Number) row[0]).longValue(),
                 (String) row[1],
-                ((Number) row[2]).longValue(),
-                ((Number) row[3]).longValue()
+                totalOrders,
+                originalTotal,
+                discount,
+                websiteFee,
+                storeRevenue
         );
     }
 
-
     /* ==============================================
-       LẤY DOANH THU TẤT CẢ SUPPLIER
+       LẤY DOANH THU TẤT CẢ SUPPLIER (KHÔNG DISCOUNT)
     ============================================== */
     public SupplierRevenueListDTO getAllSuppliersRevenue() {
 
@@ -53,16 +67,27 @@ public class SupplierService {
         long totalAllRevenue = 0;
 
         for (Object[] row : raw) {
-            Long revenue = (Long) row[3];
+
+            Long supplierId = ((Number) row[0]).longValue();
+            String shopName = (String) row[1];
+            Long totalOrders = ((Number) row[2]).longValue();
+            Long originalTotal = ((Number) row[3]).longValue();
+            Long discount = ((Number) row[4]).longValue();  // ⭐ tổng discount
+
+            Long websiteFee = Math.round(originalTotal * 0.05);
+            Long storeRevenue = originalTotal - websiteFee - discount;
 
             result.add(new SupplierRevenueDTO(
-                    ((Number) row[0]).longValue(),
-                    (String) row[1],
-                    ((Number) row[2]).longValue(),
-                    revenue
+                    supplierId,
+                    shopName,
+                    totalOrders,
+                    originalTotal,
+                    discount,
+                    websiteFee,
+                    storeRevenue
             ));
 
-            totalAllRevenue += revenue;
+            totalAllRevenue += originalTotal;
         }
 
         return new SupplierRevenueListDTO(result, totalAllRevenue);
@@ -80,14 +105,18 @@ public class SupplierService {
             Row header = sheet.createRow(0);
             header.createCell(0).setCellValue("Tên cửa hàng");
             header.createCell(1).setCellValue("Tổng đơn");
-            header.createCell(2).setCellValue("Doanh thu");
+            header.createCell(2).setCellValue("Tổng doanh số");
+            header.createCell(3).setCellValue("Phí website (5%)");
+            header.createCell(4).setCellValue("Doanh thu cửa hàng");
 
             SupplierRevenueDTO dto = getRevenueBySupplier(supplierId);
 
             Row row = sheet.createRow(1);
             row.createCell(0).setCellValue(dto.getShopName());
             row.createCell(1).setCellValue(dto.getTotalOrders());
-            row.createCell(2).setCellValue(dto.getTotalRevenue());
+            row.createCell(2).setCellValue(dto.getOriginalTotal());
+            row.createCell(3).setCellValue(dto.getWebsiteFee());
+            row.createCell(4).setCellValue(dto.getStoreRevenue());
 
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             workbook.write(out);
@@ -97,7 +126,6 @@ public class SupplierService {
             throw new RuntimeException("Export Excel failed", e);
         }
     }
-
 
     /* ==============================================
           EXPORT EXCEL ALL SUPPLIER
@@ -111,7 +139,9 @@ public class SupplierService {
             header.createCell(0).setCellValue("ID");
             header.createCell(1).setCellValue("Tên cửa hàng");
             header.createCell(2).setCellValue("Tổng đơn");
-            header.createCell(3).setCellValue("Doanh thu");
+            header.createCell(3).setCellValue("Tổng doanh số");
+            header.createCell(4).setCellValue("Phí website (5%)");
+            header.createCell(5).setCellValue("Doanh thu cửa hàng");
 
             SupplierRevenueListDTO data = getAllSuppliersRevenue();
 
@@ -122,7 +152,9 @@ public class SupplierService {
                 row.createCell(0).setCellValue(dto.getSupplierId());
                 row.createCell(1).setCellValue(dto.getShopName());
                 row.createCell(2).setCellValue(dto.getTotalOrders());
-                row.createCell(3).setCellValue(dto.getTotalRevenue());
+                row.createCell(3).setCellValue(dto.getOriginalTotal());
+                row.createCell(4).setCellValue(dto.getWebsiteFee());
+                row.createCell(5).setCellValue(dto.getStoreRevenue());
             }
 
             ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -133,11 +165,6 @@ public class SupplierService {
             throw new RuntimeException("Export Excel failed", e);
         }
     }
-
-
-    /* ==============================================
-             DOANH THU THEO THÁNG
-    ============================================== */
     public List<MonthlyRevenueDTO> getMonthlyRevenue(int year) {
         List<Object[]> raw = orderRepository.getMonthlyRevenue(year);
 
@@ -165,5 +192,4 @@ public class SupplierService {
 
         return full;
     }
-
 }

@@ -87,7 +87,6 @@ public class OrderBuilderService {
             order.setReceiverPhone(req.getReceiverPhone());
             order.setReceiverAddress(req.getReceiverAddress());
             order.setShippingFee(req.getShippingFee() == null ? 0L : req.getShippingFee());
-
             order.setCreatedAt(now);
             order.setUpdatedAt(now);
 
@@ -95,11 +94,11 @@ public class OrderBuilderService {
             List<OrderItem> orderItems = new ArrayList<>();
             List<Long> productIds = new ArrayList<>();
 
-            // Tính tiền từng line
+            // Tính tiền từng sản phẩm trong đơn
             for (ProductSelection ps : selections) {
 
-                long line = ps.product.getPrice() * ps.quantity;
-                originalTotal += line;
+                long lineTotal = ps.product.getPrice() * ps.quantity;
+                originalTotal += lineTotal;
                 productIds.add(ps.product.getId());
 
                 OrderItem oi = OrderItem.builder()
@@ -108,17 +107,17 @@ public class OrderBuilderService {
                         .supplier(ps.product.getSupplier())
                         .unitPrice(ps.product.getPrice())
                         .quantity(ps.quantity)
-                        .lineTotal(line)
+                        .lineTotal(lineTotal)
                         .build();
 
                 orderItems.add(oi);
             }
 
-            order.setItems(orderItems);
             order.setOriginalTotal(originalTotal);
 
             long discountAmount = 0L;
 
+            // ===================== KIỂM TRA MÃ GIẢM GIÁ =====================
             if (req.getDiscountCode() != null && !req.getDiscountCode().isBlank()) {
 
                 DiscountCheckRequest check = new DiscountCheckRequest();
@@ -135,18 +134,28 @@ public class OrderBuilderService {
                 }
 
                 discountAmount = res.getDiscountAmount();
-                order.setDiscountCode(req.getDiscountCode());  // ⭐ ĐẶT LÊN TRÊN
+                order.setDiscountCode(req.getDiscountCode());
             }
 
             order.setDiscountAmount(discountAmount);
 
-            order.setItems(orderItems); // ⭐ ĐẶT SAU
-            order.setFinalTotal(originalTotal + order.getShippingFee() - discountAmount);
+            // ===================== TIỀN KHÁCH PHẢI TRẢ =====================
+            long finalTotal = originalTotal + order.getShippingFee() - discountAmount;
+            order.setFinalTotal(finalTotal);
+
+            // ===================== TIỀN SHOP NHẬN (KHÔNG TÍNH SHIP) =====================
+            long shopRevenue = originalTotal - discountAmount;
+            order.setShopRevenue(shopRevenue);
+
+            // ⭐ Đặt items sau khi mọi thông tin tiền tệ đã sẵn sàng
+            order.setItems(orderItems);
+
             draftOrders.add(order);
         }
 
         return draftOrders;
     }
+
 
     public UserAccount getCurrentUser() {
         return userAccountService.getCurrentCustomer();
