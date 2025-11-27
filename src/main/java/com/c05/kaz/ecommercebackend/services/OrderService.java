@@ -89,6 +89,18 @@ public class OrderService {
             notificationService.pushOrderStatusToCustomer(
                     order.getCustomer().getId(), order.getId(), "PENDING");
 
+            notificationService.notifyOrderCreatedForSupplier(
+                    order.getSupplier(),
+                    order.getCustomer().getUser(),
+                    order.getId(),
+                    order.getFinalTotal()
+            );
+
+            notificationService.notifyOrderCreatedForCustomer(
+                    order.getCustomer().getUser(),
+                    order.getId()
+            );
+
             responses.add(buildSummary(order));
         }
 

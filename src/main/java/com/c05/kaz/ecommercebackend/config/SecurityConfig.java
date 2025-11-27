@@ -69,6 +69,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "HR")
 
                         // Roles SUPPLIER
+                        .requestMatchers(HttpMethod.GET, "/api/suppliers/**").permitAll()
                         .requestMatchers("/api/suppliers/**").hasRole("SUPPLIER")
 
                         // Roles CUSTOMER

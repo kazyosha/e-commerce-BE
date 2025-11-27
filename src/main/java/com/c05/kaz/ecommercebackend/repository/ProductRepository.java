@@ -111,11 +111,13 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     // PUBLIC SEARCH (Customer search)
 // ==========================
     @Query("""
-                SELECT p FROM Product p
-                WHERE 
-                    LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
-                    OR LOWER(p.description) LIKE LOWER(CONCAT('%', :keyword, '%'))
-            """)
+        SELECT p FROM Product p
+        WHERE p.active = true
+          AND (
+                LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                OR LOWER(p.description) LIKE LOWER(CONCAT('%', :keyword, '%'))
+          )
+       """)
     Page<Product> searchPublicProducts(
             @Param("keyword") String keyword,
             Pageable pageable
@@ -140,12 +142,20 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     @Query("""
     SELECT DISTINCT p FROM Product p
     LEFT JOIN p.categories c
-    WHERE (:search IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :search, '%')))
-      AND (:category IS NULL OR LOWER(c.name) = LOWER(:category))
-      AND (:location IS NULL OR LOWER(p.supplier.address) LIKE LOWER(CONCAT('%', :location, '%')))
-      AND (:minPrice IS NULL OR p.price >= :minPrice)
-      AND (:maxPrice IS NULL OR p.price <= :maxPrice)
-      AND (:rating IS NULL OR p.avgRating >= :rating)
+    WHERE p.active = true
+      AND (:search IS NULL
+           OR LOWER(p.name) LIKE LOWER(CONCAT('%', :search, '%'))
+           OR LOWER(p.description) LIKE LOWER(CONCAT('%', :search, '%')))
+      AND (:category IS NULL
+           OR LOWER(c.name) = LOWER(:category))
+      AND (:location IS NULL
+           OR LOWER(p.supplier.address) LIKE LOWER(CONCAT('%', :location, '%')))
+      AND (:minPrice IS NULL
+           OR p.price >= :minPrice)
+      AND (:maxPrice IS NULL
+           OR p.price <= :maxPrice)
+      AND (:rating IS NULL
+           OR p.avgRating >= :rating)
 """)
     Page<Product> advancedSearch(
             @Param("search") String search,
