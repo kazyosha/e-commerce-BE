@@ -26,7 +26,7 @@ public class RevenueExportService {
         Font normalFont = workbook.createFont();
         normalFont.setFontHeightInPoints((short) 11);
 
-        // ===== STYLE HEADER =====
+        // ===== HEADER STYLE =====
         CellStyle headerStyle = workbook.createCellStyle();
         headerStyle.setFont(headerFont);
         headerStyle.setAlignment(HorizontalAlignment.CENTER);
@@ -38,7 +38,7 @@ public class RevenueExportService {
         headerStyle.setBorderLeft(BorderStyle.THIN);
         headerStyle.setBorderRight(BorderStyle.THIN);
 
-        // ===== STYLE BODY LEFT =====
+        // ===== BODY STYLES =====
         CellStyle bodyLeft = workbook.createCellStyle();
         bodyLeft.setFont(normalFont);
         bodyLeft.setAlignment(HorizontalAlignment.LEFT);
@@ -48,7 +48,6 @@ public class RevenueExportService {
         bodyLeft.setBorderLeft(BorderStyle.THIN);
         bodyLeft.setBorderRight(BorderStyle.THIN);
 
-        // ===== STYLE BODY CENTER =====
         CellStyle bodyCenter = workbook.createCellStyle();
         bodyCenter.cloneStyleFrom(bodyLeft);
         bodyCenter.setAlignment(HorizontalAlignment.CENTER);
@@ -65,9 +64,16 @@ public class RevenueExportService {
         zebraCenter.setFillPattern(FillPatternType.SOLID_FOREGROUND);
 
         // ===== HEADER =====
-        String[] columns = {"STT", "Tên cửa hàng", "Doanh thu", "Doanh thu website (5%)"};
-        Row headerRow = sheet.createRow(0);
+        String[] columns = {
+                "STT",
+                "Tên cửa hàng",
+                "Tổng doanh số",
+                "Tổng giảm giá",
+                "Phí website (5%)",
+                "Doanh thu cửa hàng"
+        };
 
+        Row headerRow = sheet.createRow(0);
         for (int i = 0; i < columns.length; i++) {
             Cell cell = headerRow.createCell(i);
             cell.setCellValue(columns[i]);
@@ -93,25 +99,31 @@ public class RevenueExportService {
             c2.setCellValue(dto.getShopName());
             c2.setCellStyle(isZebra ? zebraLeft : bodyLeft);
 
-            // Doanh thu
-            String revenue = String.format("%,d ₫", dto.getTotalRevenue());
-
+            // Tổng doanh số
             Cell c3 = row.createCell(2);
-            c3.setCellValue(revenue);
+            c3.setCellValue(String.format("%,d ₫", dto.getOriginalTotal()));
             c3.setCellStyle(isZebra ? zebraLeft : bodyLeft);
 
-            // Website fee 3%
-            long websiteFee = Math.round(dto.getTotalRevenue() * 0.05);
-            String websiteFeeStr = String.format("%,d ₫", websiteFee);
-
+// Tổng giảm giá
             Cell c4 = row.createCell(3);
-            c4.setCellValue(websiteFeeStr);
+            c4.setCellValue(String.format("%,d ₫", dto.getDiscount()));
             c4.setCellStyle(isZebra ? zebraLeft : bodyLeft);
+
+// Phí website
+            Cell c5 = row.createCell(4);
+            c5.setCellValue(String.format("%,d ₫", dto.getWebsiteFee()));
+            c5.setCellStyle(isZebra ? zebraLeft : bodyLeft);
+
+// Doanh thu cửa hàng
+            Cell c6 = row.createCell(5);
+            c6.setCellValue(String.format("%,d ₫", dto.getStoreRevenue()));
+            c6.setCellStyle(isZebra ? zebraLeft : bodyLeft);
+
 
             rowIdx++;
         }
 
-        // ===== AUTO SIZE =====
+        // AUTO SIZE
         for (int i = 0; i < columns.length; i++) {
             sheet.autoSizeColumn(i);
         }

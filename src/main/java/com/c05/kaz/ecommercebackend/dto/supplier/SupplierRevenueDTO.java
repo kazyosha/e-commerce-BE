@@ -12,5 +12,9 @@ public class SupplierRevenueDTO {
     private Long supplierId;
     private String shopName;
     private Long totalOrders;
-    private Long totalRevenue;
+    private Long originalTotal;
+    private Long discount;
+    private Long websiteFee;
+    private Long storeRevenue;
+
 }
