@@ -30,6 +30,8 @@ public class SupplierProductService {
     private final UserAccountRepository userAccountRepository;
     private final DiscountRepository discountRepository;
     private final Cloudinary cloudinary;
+    private final OrderItemRepository orderItemRepository;
+
 
     // =====================================
     //           HELPER METHODS
@@ -163,11 +165,11 @@ public class SupplierProductService {
         Long soldQty = product.getSoldQuantity() == null ? 0L : product.getSoldQuantity();
         Long price = product.getPrice() == null ? 0L : product.getPrice();
 
-        Long totalRevenue = soldQty * price;
-        Long fee5 = (long) (totalRevenue * 0.05);
+        Long shopRevenue = orderItemRepository.getProductShopRevenue(product.getId());
+        if (shopRevenue == null) shopRevenue = 0L;
 
-        Long netRevenue = totalRevenue - fee5;
-        if (netRevenue < 0) netRevenue = 0L;
+        Long totalRevenue = shopRevenue;
+        Long netRevenue = (long)(shopRevenue * 0.95);
 
         if (imageUrls == null || imageUrls.isEmpty()) {
             imageUrls = product.getImages()
@@ -198,9 +200,14 @@ public class SupplierProductService {
         // =====================================================
         List<String> discountCodes = discountRepository.findByApplicableProductsContains(product)
                 .stream()
-                .filter(d -> d.getStatus() == DiscountStatus.ACTIVE)  // ⭐ Lọc chỉ lấy ACTIVE
+                .filter(d -> d.getStatus() == DiscountStatus.ACTIVE)
                 .map(Discount::getCode)
                 .toList();
+
+        // =====================================================
+        // ⭐ DOANH SỐ SHOP NHẬN THỰC TẾ (LẤY TỪ ORDER)
+        // =====================================================
+        if (shopRevenue == null) shopRevenue = 0L;
 
         return ProductResponse.builder()
                 .id(product.getId())
@@ -219,15 +226,12 @@ public class SupplierProductService {
                 .soldQuantity(product.getSoldQuantity())
                 .totalRevenue(totalRevenue)
                 .netRevenue(netRevenue)
+                .shopRevenue(shopRevenue)        // ⭐ ADD HERE (chuẩn nhất)
                 .createdAt(product.getCreatedAt())
                 .updatedAt(product.getUpdatedAt())
-
-                // ⭐ ADD HERE
                 .discountCodes(discountCodes)
-
                 .build();
     }
-
 
     // =====================================
     //          LIST MY PRODUCTS

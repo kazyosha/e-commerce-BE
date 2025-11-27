@@ -77,4 +77,7 @@ public class Order {
     private LocalDateTime updatedAt;
 
     private Double totalPrice;
+
+    @Column(name = "shop_revenue")
+    private Long shopRevenue;
 }

@@ -41,6 +41,8 @@ public class ProductResponse {
 
     private Long totalRevenue;     // doanh số
     private Long netRevenue;       // doanh thu thực
+    private Long shopRevenue;
+
 
     // ⭐ THÊM TRƯỜNG NÀY
     private List<String> discountCodes;
