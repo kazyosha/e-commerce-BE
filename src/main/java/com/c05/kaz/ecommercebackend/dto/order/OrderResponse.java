@@ -22,6 +22,7 @@ public class OrderResponse {
     private String receiverName;
     private String receiverPhone;
     private String receiverAddress;
+    private String discountCode;
 
     public static OrderResponse fromEntity(Order order) {
         OrderResponse dto = new OrderResponse();
@@ -38,6 +39,7 @@ public class OrderResponse {
         dto.setDiscountAmount(order.getDiscountAmount());
         dto.setFinalTotal(order.getFinalTotal());
         dto.setShippingFee(order.getShippingFee());
+        dto.setDiscountCode(order.getDiscountCode());
 
 
         dto.setReceiverName(order.getReceiverName());

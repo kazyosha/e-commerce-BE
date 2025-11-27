@@ -1,5 +1,7 @@
 package com.c05.kaz.ecommercebackend.controller;
 
+import com.c05.kaz.ecommercebackend.dto.discount.DiscountCheckRequest;
+import com.c05.kaz.ecommercebackend.dto.discount.DiscountCheckResponse;
 import com.c05.kaz.ecommercebackend.dto.discount.DiscountRequest;
 import com.c05.kaz.ecommercebackend.dto.discount.DiscountResponse;
 import com.c05.kaz.ecommercebackend.entity.UserAccount;
@@ -13,7 +15,7 @@ import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/suppliers/discounts")   // ✅ SỬA ĐÚNG PREFIX
+@RequestMapping("/api/suppliers/discounts")   // ĐÚNG PREFIX CHUẨN
 public class DiscountController {
 
     private final DiscountService discountService;
@@ -49,7 +51,7 @@ public class DiscountController {
     }
 
     // ================================
-    // ÁP DỤNG MÃ GIẢM GIÁ (CHECKOUT)
+    // ÁP DỤNG MÃ GIẢM GIÁ (TRỪ LƯỢT)
     // ================================
     @PostMapping("/apply")
     public Long apply(
@@ -61,6 +63,9 @@ public class DiscountController {
         return discountService.apply(supplierId, code, orderValue, user);
     }
 
+    // ================================
+    // XOÁ MÃ GIẢM GIÁ
+    // ================================
     @DeleteMapping("/{supplierId}/{discountId}")
     public void delete(
             @PathVariable Long supplierId,
@@ -69,4 +74,21 @@ public class DiscountController {
         discountService.delete(supplierId, discountId);
     }
 
+    // ===========================================
+    // LẤY VOUCHER HIỂN THỊ CHO USER
+    // ===========================================
+    @GetMapping("/supplier/{supplierId}/available")
+    public List<DiscountResponse> getAvailableDiscounts(@PathVariable Long supplierId) {
+        return discountService.getAvailableDiscountsForUser(supplierId);
+    }
+
+    // ===========================================
+    // CHECK MÃ GIẢM GIÁ (KHÔNG TRỪ LƯỢT)
+    // ===========================================
+    @PostMapping("/check")
+    public DiscountCheckResponse checkDiscount(
+            @RequestBody DiscountCheckRequest request
+    ) {
+        return discountService.checkDiscountForCart(request);
+    }
 }

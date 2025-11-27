@@ -25,6 +25,10 @@ public class SupplierOrderDetailResponse {
     private Long originalTotal;
     private Long discountAmount;
     private Long finalTotal;
+    private Long shippingFee;
+    private String receiverName;
+    private String receiverPhone;
+    private String receiverAddress;
 
     private String paymentMethod;
     private boolean paid;
@@ -53,7 +57,10 @@ public class SupplierOrderDetailResponse {
                 .originalTotal(order.getOriginalTotal())
                 .discountAmount(order.getDiscountAmount())
                 .finalTotal(order.getFinalTotal())
-
+                .shippingFee(order.getShippingFee())
+                .receiverName(order.getReceiverName())
+                .receiverPhone(order.getReceiverPhone())
+                .receiverAddress(order.getReceiverAddress())
                 .paymentMethod(order.getPaymentMethod().name())
                 .paid(order.isPaid())
 

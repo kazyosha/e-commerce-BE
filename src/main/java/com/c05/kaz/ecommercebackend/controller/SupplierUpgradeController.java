@@ -4,6 +4,9 @@ import com.c05.kaz.ecommercebackend.entity.SupplierDocument;
 import com.c05.kaz.ecommercebackend.entity.SupplierShop;
 import com.c05.kaz.ecommercebackend.services.SupplierDocumentService;
 import com.c05.kaz.ecommercebackend.services.SupplierUpgradeService;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -78,10 +81,23 @@ public class SupplierUpgradeController {
     // DTOs
     @Data
     public static class ShopInfoRequest {
+
+        @NotBlank(message = "Tên shop không được để trống")
+        @Size(min = 3, max = 150, message = "Tên shop phải từ 3-150 ký tự")
+        @Pattern(regexp = "^(?!\\s*$).+", message = "Tên shop không được chứa toàn dấu cách")
         private String shopName;
+
+        @NotBlank(message = "Địa chỉ không được để trống")
+        @Size(min = 10, max = 255, message = "Địa chỉ phải từ 10-255 ký tự")
+        @Pattern(regexp = "^(?!\\s*$).+", message = "Địa chỉ không được chứa toàn dấu cách")
         private String address;
+
+        @NotBlank(message = "Mô tả không được để trống")
+        @Size(min = 10, max = 500, message = "Mô tả phải từ 10-500 ký tự")
+        @Pattern(regexp = "^(?!\\s*$).+", message = "Mô tả không được chứa toàn dấu cách")
         private String description;
     }
+
 
     @Data
     public static class VerifyOtpRequest {
