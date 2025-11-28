@@ -29,7 +29,7 @@ public class ProductController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "12") int size
     ) {
-        return ResponseEntity.ok(productService.getAllProducts(page, size));
+        return ResponseEntity.ok(productService.getAllProduct(page, size));
     }
     @GetMapping("/all")
     public ResponseEntity<?> getAllProducts() {

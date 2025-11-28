@@ -10,10 +10,7 @@ import com.c05.kaz.ecommercebackend.repository.CategoryRepository;
 import com.c05.kaz.ecommercebackend.repository.ProductRepository;
 import com.c05.kaz.ecommercebackend.repository.SupplierRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -29,7 +26,7 @@ public class ProductService {
     private final CategoryRepository categoryRepository;
     private final SupplierRepository supplierRepository;
 
-    public Page<Product> getAllProducts(int page, int size) {
+    public Page<Product> getAllProduct(int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         return productRepository.findAll(pageable);
     }
@@ -133,29 +130,42 @@ public class ProductService {
         Pageable pageable = PageRequest.of(page, size);
         String kw = (keyword == null) ? "" : keyword.trim();
 
-        // Không keyword, không category -> trả về all
+        Page<Product> result;
+
+        // Không keyword, không category -> all
         if (kw.isEmpty() && categoryId == null) {
-            return getAllProducts(page, size);
+            result = getAllProduct(page, size);
         }
-
-        // Có keyword, không category -> search theo tên
-        if (!kw.isEmpty() && categoryId == null) {
-            return productRepository.findByNameContainingIgnoreCase(kw, pageable);
+        // keyword, không category
+        else if (!kw.isEmpty() && categoryId == null) {
+            result = productRepository.findByNameContainingIgnoreCase(kw, pageable);
         }
-
-        // Có category, không keyword -> lọc theo category
-        if (kw.isEmpty()) {
+        // category, không keyword
+        else if (kw.isEmpty()) {
             Category category = categoryRepository.findById(categoryId).orElse(null);
             if (category == null) return Page.empty(pageable);
 
-            return productRepository.findDistinctByCategories(category, pageable);
+            result = productRepository.findDistinctByCategories(category, pageable);
+        }
+        // keyword + category
+        else {
+            Category category = categoryRepository.findById(categoryId).orElse(null);
+            if (category == null) return Page.empty(pageable);
+
+            result = productRepository
+                    .findDistinctByNameContainingIgnoreCaseAndCategories(kw, category, pageable);
         }
 
-        Category category = categoryRepository.findById(categoryId).orElse(null);
-        if (category == null) return Page.empty(pageable);
+        // ⭐ FILTER ACTIVE = TRUE
+        List<Product> filteredList = result.getContent()
+                .stream()
+                .filter(Product::isActive)
+                .toList();
 
-        return productRepository
-                .findDistinctByNameContainingIgnoreCaseAndCategories(kw, category, pageable);
+        // ⭐ Lưu ý: totalElements phải tính active chứ không phải total gốc
+        long totalActiveCount = filteredList.size();
+
+        return new PageImpl<>(filteredList, pageable, totalActiveCount);
     }
 
     // ========================
