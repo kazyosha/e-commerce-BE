@@ -19,25 +19,19 @@ public class ChatController {
 
     private final ChatService chatService;
 
-    // ====================================
-    // 🔥 Lấy danh sách phòng chat của user hiện tại
-    // ====================================
+
     @GetMapping("/rooms")
     public List<ChatRoomDTO> getMyRooms() {
         return chatService.getRoomsOfCurrentUser();
     }
 
-    // ====================================
-    // 🔥 Tạo / mở phòng chat
-    // ====================================
+
     @PostMapping("/rooms/open")
     public ChatRoomDTO openRoom(@RequestBody OpenRoomRequest request) {
         return chatService.openRoom(request);
     }
 
-    // ====================================
-    // 🔥 Lấy tin nhắn trong room
-    // ====================================
+
     @GetMapping("/rooms/{roomId}/messages")
     public Page<ChatMessageDTO> getMessages(
             @PathVariable Long roomId,
@@ -47,9 +41,7 @@ public class ChatController {
         return chatService.getMessages(roomId, page, size);
     }
 
-    // ====================================
-    // 🔥 Gửi tin nhắn
-    // ====================================
+
     @PostMapping("/rooms/{roomId}/messages")
     public ChatMessageDTO sendMessage(
             @PathVariable Long roomId,
@@ -58,9 +50,7 @@ public class ChatController {
         return chatService.sendMessage(roomId, request);
     }
 
-    // ====================================
-    // 🔥 Đánh dấu đã đọc
-    // ====================================
+
     @PostMapping("/rooms/{roomId}/read")
     public void markAsRead(
             @PathVariable Long roomId,
@@ -69,9 +59,6 @@ public class ChatController {
         chatService.markAsRead(roomId, request);
     }
 
-    // ====================================
-    // 🔥 Tổng số unread của user
-    // ====================================
     @GetMapping("/unread-count")
     public Integer getUnreadCount() {
         return chatService.getUnreadCount();

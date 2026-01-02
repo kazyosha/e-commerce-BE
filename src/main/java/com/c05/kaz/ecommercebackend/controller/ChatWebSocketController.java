@@ -19,7 +19,6 @@ public class ChatWebSocketController {
             @DestinationVariable Long roomId,
             @Payload SendMessageRequest req
     ) {
-        // Lưu DB + gửi WebSocket ra FE
         chatService.sendMessage(roomId, req);
     }
 }

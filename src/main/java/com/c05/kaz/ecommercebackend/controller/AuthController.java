@@ -36,7 +36,6 @@ public class AuthController {
     private final JwtService jwtService;
     private final OtpService otpService; // <-- dùng service mới
 
-    // ================== ĐĂNG KÝ ==================
     @PostMapping("/register/customer")
     public ResponseEntity<?> registerCustomer(@RequestBody RegisterRequest request) {
         return registerUser(request, UserType.CUSTOMER, "CUSTOMER");
@@ -47,7 +46,6 @@ public class AuthController {
         return registerUser(request, UserType.SUPPLIER, "SUPPLIER");
     }
 
-    // ================== LOGIN ==================
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         try {
@@ -91,7 +89,6 @@ public class AuthController {
         );
     }
 
-    // ================== QUÊN MẬT KHẨU ==================
     @PostMapping("/forgot-password")
     public ResponseEntity<?> forgotPassword(@RequestBody ForgotPasswordRequest request) {
         var userOpt = userAccountRepository.findByEmail(request.getEmail());
@@ -100,7 +97,6 @@ public class AuthController {
         }
         var user = userOpt.get();
 
-        // Tạo + lưu + gửi OTP qua OtpService
         otpService.sendForgotPasswordOtp(user);
         return ResponseEntity.ok(Map.of("message", "Đã gửi mã OTP đến email " + request.getEmail()));
     }
@@ -120,7 +116,6 @@ public class AuthController {
         return ResponseEntity.ok(Map.of("message", "Đặt lại mật khẩu thành công"));
     }
 
-    // ================== HÀM DÙNG CHUNG ==================
     private ResponseEntity<?> registerUser(RegisterRequest request, UserType userType, String roleCode) {
         if (userAccountRepository.existsByEmail(request.getEmail()))
             return ResponseEntity.status(HttpStatus.CONFLICT)

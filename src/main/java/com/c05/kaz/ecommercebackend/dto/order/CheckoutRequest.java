@@ -18,5 +18,5 @@ public class CheckoutRequest {
     private String discountCode;
 
 
-    private PaymentMethod paymentMethod; // COD hoặc BANK_GATEWAY
+    private PaymentMethod paymentMethod;
 }

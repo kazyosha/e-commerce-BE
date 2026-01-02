@@ -39,7 +39,6 @@ public class AdminSupplierController {
         return ResponseEntity.ok(supplierRepository.findByStatus(SupplierStatus.PENDING));
     }
 
-    /** APPROVE */
     @PutMapping("/{id}/approve")
     @Transactional
     public ResponseEntity<?> approve(@PathVariable Long id) {
@@ -59,25 +58,20 @@ public class AdminSupplierController {
         return ResponseEntity.ok("Duyệt nhà cung cấp thành công");
     }
 
-    /** REJECT → XÓA DOCUMENT */
     @PutMapping("/{id}/reject")
     @Transactional
     public ResponseEntity<?> reject(@PathVariable Long id) {
         SupplierShop shop = supplierRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Shop không tồn tại"));
 
-        // Xóa tài liệu trên cloud + DB
         documentService.deleteDocumentsBySupplier(id);
 
-        // Cập nhật trạng thái shop
         shop.setStatus(SupplierStatus.REJECTED);
 
-        // Cập nhật user về CUSTOMER
         UserAccount user = shop.getUser();
         user.setUserType(UserType.CUSTOMER);
         user.setStatus(AccountStatus.ACTIVE);
 
-        // 👉 CHỈ SAVE, KHÔNG ĐƯỢC delete + save cùng lúc
         supplierRepository.save(shop);
 
         return ResponseEntity.ok("Từ chối — toàn bộ tài liệu đã được xoá!");
@@ -86,11 +80,9 @@ public class AdminSupplierController {
     @GetMapping("/{supplierId}/revenue")
     public ResponseEntity<byte[]> exportSupplierRevenue(@PathVariable Long supplierId) {
 
-        // Lấy dữ liệu
         SupplierRevenueDTO dto = supplierService.getRevenueBySupplier(supplierId);
         List<SupplierRevenueDTO> list = List.of(dto);
 
-        // Tạo file Excel
         ByteArrayInputStream excelStream;
         try {
             excelStream = revenueExportService.exportRevenueExcel(list);
@@ -98,7 +90,6 @@ public class AdminSupplierController {
             throw new RuntimeException("Không thể tạo file Excel", e);
         }
 
-        // Trả về dạng byte[]
         byte[] fileBytes;
         fileBytes = excelStream.readAllBytes();
 
@@ -119,7 +110,6 @@ public class AdminSupplierController {
     @GetMapping("/revenue/export")
     public ResponseEntity<byte[]> exportAllSuppliersRevenue() {
 
-        // Lấy dữ liệu toàn bộ supplier
         List<SupplierRevenueDTO> list = supplierService.getAllSuppliersRevenue().getItems();
 
         ByteArrayInputStream excelStream;

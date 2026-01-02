@@ -20,17 +20,12 @@ public class DiscountController {
 
     private final DiscountService discountService;
 
-    // ================================
-    // LẤY TẤT CẢ MÃ GIẢM GIÁ CỦA SHOP
-    // ================================
     @GetMapping("/{supplierId}")
     public List<DiscountResponse> getBySupplier(@PathVariable Long supplierId) {
         return discountService.getBySupplier(supplierId);
     }
 
-    // ================================
-    // TẠO MÃ GIẢM GIÁ
-    // ================================
+
     @PostMapping("/{supplierId}")
     public DiscountResponse create(
             @PathVariable Long supplierId,
@@ -39,9 +34,7 @@ public class DiscountController {
         return discountService.create(supplierId, request);
     }
 
-    // ================================
-    // BẬT / TẮT MÃ GIẢM GIÁ
-    // ================================
+
     @PatchMapping("/{supplierId}/toggle/{discountId}")
     public DiscountResponse toggleStatus(
             @PathVariable Long supplierId,
@@ -50,9 +43,7 @@ public class DiscountController {
         return discountService.toggleStatus(supplierId, discountId);
     }
 
-    // ================================
-    // ÁP DỤNG MÃ GIẢM GIÁ (TRỪ LƯỢT)
-    // ================================
+
     @PostMapping("/apply")
     public Long apply(
             @RequestParam Long supplierId,
@@ -63,9 +54,7 @@ public class DiscountController {
         return discountService.apply(supplierId, code, orderValue, user);
     }
 
-    // ================================
-    // XOÁ MÃ GIẢM GIÁ
-    // ================================
+
     @DeleteMapping("/{supplierId}/{discountId}")
     public void delete(
             @PathVariable Long supplierId,
@@ -74,17 +63,11 @@ public class DiscountController {
         discountService.delete(supplierId, discountId);
     }
 
-    // ===========================================
-    // LẤY VOUCHER HIỂN THỊ CHO USER
-    // ===========================================
     @GetMapping("/supplier/{supplierId}/available")
     public List<DiscountResponse> getAvailableDiscounts(@PathVariable Long supplierId) {
         return discountService.getAvailableDiscountsForUser(supplierId);
     }
 
-    // ===========================================
-    // CHECK MÃ GIẢM GIÁ (KHÔNG TRỪ LƯỢT)
-    // ===========================================
     @PostMapping("/check")
     public DiscountCheckResponse checkDiscount(
             @RequestBody DiscountCheckRequest request

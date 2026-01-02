@@ -2,11 +2,13 @@ package com.c05.kaz.ecommercebackend.services;
 
 import com.c05.kaz.ecommercebackend.dto.user.UserAccountDTO;
 import com.c05.kaz.ecommercebackend.entity.EmployeeProfile;
+import com.c05.kaz.ecommercebackend.entity.Role;
 import com.c05.kaz.ecommercebackend.entity.UserAccount;
 import com.c05.kaz.ecommercebackend.enums.AccountStatus;
 import com.c05.kaz.ecommercebackend.enums.SocialProvider;
 import com.c05.kaz.ecommercebackend.enums.UserType;
 import com.c05.kaz.ecommercebackend.repository.EmployeeProfileRepository;
+import com.c05.kaz.ecommercebackend.repository.RoleRepository;
 import com.c05.kaz.ecommercebackend.repository.UserAccountRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -19,6 +21,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +30,7 @@ public class UserAccountService {
     private final UserAccountRepository userAccountRepository;
     private final EmployeeProfileRepository employeeProfileRepository;
     private final PasswordEncoder passwordEncoder;
+    private final RoleRepository roleRepository;
 
 
     @Transactional(readOnly = true)
@@ -55,6 +59,7 @@ public class UserAccountService {
 
     @Transactional
     public void createEmployee(UserAccountDTO req) {
+
         if (userAccountRepository.existsByUsername(req.getUsername())) {
             throw new RuntimeException("Username đã tồn tại");
         }
@@ -62,12 +67,18 @@ public class UserAccountService {
             throw new RuntimeException("Email đã tồn tại");
         }
 
+        // ====== Lấy ROLE_HR từ DB ======
+        Role hrRole = Objects.requireNonNull(
+                roleRepository.findByCode("HR"),
+                "Role HR không tồn tại!"
+        );
+
+        // ====== Tạo User HR ======
         UserAccount user = UserAccount.builder()
                 .username(req.getUsername())
-                .password(passwordEncoder.encode("123456@Abc")) // default
+                .password(passwordEncoder.encode("123456@Abc"))
                 .email(req.getEmail())
-//                .fullName(req.getFullName())
-                .userType(UserType.HR)       // hoặc ADMIN/STAFF tuỳ quy ước
+                .userType(UserType.HR)
                 .status(AccountStatus.ACTIVE)
                 .provider(SocialProvider.LOCAL)
                 .emailVerified(false)
@@ -75,21 +86,25 @@ public class UserAccountService {
                 .updatedAt(LocalDateTime.now())
                 .build();
 
+        // ====== GÁN ROLE_HR ======
+        user.getRoles().add(hrRole);
+
         userAccountRepository.save(user);
 
+        // ====== Tạo EmployeeProfile ======
         EmployeeProfile profile = EmployeeProfile.builder()
                 .user(user)
                 .fullName(req.getFullName() != null ? req.getFullName() : "Nhân viên HR mới")
                 .salary(req.getSalary() != null ? req.getSalary() : 0L)
-                .phone("")                  // bỏ phone → cho chuỗi rỗng để tránh null
-                .address("")                // nếu không dùng address
-                .age(null)                  // nếu age không dùng luôn
+                .phone("")
+                .address("")
+                .age(null)
                 .createdAt(LocalDateTime.now())
                 .build();
 
         employeeProfileRepository.save(profile);
 
-        System.out.println("✅ Đã tạo HR mới: " + req.getUsername() + " (có profile đi kèm)");
+        System.out.println("🔥 HR created: " + req.getUsername() + " + GÁN ROLE_HR thành công!");
     }
 
 
@@ -165,5 +180,6 @@ public class UserAccountService {
                 "SUPPLIER", supplier
         );
     }
+
 
 }

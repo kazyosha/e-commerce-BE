@@ -15,7 +15,6 @@ public class CartController {
 
     private final CartService cartService;
 
-    // Thêm vào giỏ
     @PostMapping("/items")
     public ResponseEntity<?> addToCart(@RequestBody AddToCartRequest request) {
         try {
@@ -30,13 +29,11 @@ public class CartController {
         }
     }
 
-    // Lấy giỏ hàng của customer hiện tại
     @GetMapping("/me")
     public ResponseEntity<CartResponse> getMyCart() {
         return ResponseEntity.ok(cartService.getMyCart());
     }
 
-    // Cập nhật số lượng 1 item
     @PutMapping("/items/{itemId}")
     public ResponseEntity<?> updateItemQuantity(
             @PathVariable Long itemId,
@@ -53,7 +50,6 @@ public class CartController {
         }
     }
 
-    // Xoá 1 item
     @DeleteMapping("/items/{itemId}")
     public ResponseEntity<?> removeItem(@PathVariable Long itemId) {
         try {

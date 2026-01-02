@@ -25,11 +25,9 @@ public class OrderItemResponse {
             thumbnail = oi.getProduct().getImages().get(0).getImageUrl();
         }
 
-        // Nếu entity OrderItem đã có field lineTotal
         Long lineTotal = oi.getLineTotal();
-        // fallback: tự tính nếu null
         if (lineTotal == null && oi.getUnitPrice() != null && oi.getQuantity() != null) {
-            lineTotal = oi.getUnitPrice() * oi.getQuantity(); // unitPrice là Long, quantity là Integer
+            lineTotal = oi.getUnitPrice() * oi.getQuantity();
         }
 
         return OrderItemResponse.builder()

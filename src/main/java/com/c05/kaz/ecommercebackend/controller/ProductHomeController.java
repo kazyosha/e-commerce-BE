@@ -16,7 +16,7 @@ public class ProductHomeController {
     @GetMapping
     public ResponseEntity<?> getHomeProducts(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "12") int size
+            @RequestParam(defaultValue = "15") int size
     ) {
         return ResponseEntity.ok(productService.getHomeProducts(page, size));
     }

@@ -32,6 +32,7 @@ public class SecurityConfig {
             "/api/auth/register/**",
             "/api/auth/forgot-password",
             "/api/auth/reset-password",
+
             "/api/auth/oauth/google",
             "/api/auth/oauth/facebook",
             "/api/public/**",

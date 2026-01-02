@@ -16,7 +16,6 @@ public class ChatUserController {
 
     private final SupplierRepository supplierRepo;
 
-    // Lấy tất cả shop (hoặc lọc theo active)
     @GetMapping("/suppliers")
     public List<SupplierBasicDTO> getAllSuppliers() {
         return supplierRepo.findAll().stream()
